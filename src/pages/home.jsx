@@ -82,7 +82,7 @@ const AirportInput = ({ label, icon, value, onChange, placeholder, airportList }
   );
 };
 
-// --- COMPONENT: Traveller Selector ---
+// --- COMPONENT: Traveller Selector (UPDATED DISPLAY) ---
 const TravellerSelector = ({ counts, setCounts, cabinClass, setCabinClass }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
@@ -99,12 +99,23 @@ const TravellerSelector = ({ counts, setCounts, cabinClass, setCabinClass }) => 
     setCounts(prev => {
       let newVal = operation === 'inc' ? prev[type] + 1 : prev[type] - 1;
       if (newVal < 0) newVal = 0;
-      if (type === 'adults' && newVal < 1) newVal = 1;
+      if (type === 'adults' && newVal < 1) newVal = 1; // Min 1 adult
       return { ...prev, [type]: newVal };
     });
   };
 
-  const total = counts.adults + counts.children + counts.infants;
+  // --- LOGIC: Create a string like "2 Adt, 1 Chd, Economy" ---
+  const getTravellerSummary = () => {
+    let parts = [];
+    if (counts.adults > 0) parts.push(`${counts.adults} Adt`);
+    if (counts.children > 0) parts.push(`${counts.children} Chd`);
+    if (counts.infants > 0) parts.push(`${counts.infants} Inf`);
+    
+    // Fallback if empty (shouldn't happen due to min 1 adult)
+    const paxString = parts.length > 0 ? parts.join(', ') : '1 Traveller';
+    
+    return `${paxString}, ${cabinClass}`;
+  };
 
   return (
     <div className="position-relative w-100" ref={wrapperRef}>
@@ -117,9 +128,9 @@ const TravellerSelector = ({ counts, setCounts, cabinClass, setCabinClass }) => 
         <input
           type="text"
           className="form-control border-0 bg-transparent shadow-none"
-          value={`${total} Per, ${cabinClass}`}
+          value={getTravellerSummary()} // <--- Using new summary function
           readOnly
-          style={{ cursor: 'pointer', fontSize: '0.85rem', textOverflow: 'ellipsis' }}
+          style={{ cursor: 'pointer', fontSize: '0.8rem', textOverflow: 'ellipsis' }}
         />
         <span className="input-group-text border-0 bg-transparent"><FaUser size={12} className="text-secondary" /></span>
       </div>
@@ -127,24 +138,49 @@ const TravellerSelector = ({ counts, setCounts, cabinClass, setCabinClass }) => 
       {isOpen && (
         <div className="card position-absolute shadow-lg p-3 mt-1" style={{ zIndex: 1060, width: '300px', right: 0 }}>
           <h6 className="fw-bold mb-3 border-bottom pb-2" style={{ fontSize: '0.9rem' }}>Travellers</h6>
-          {['adults', 'children', 'infants'].map((type) => (
-            <div className="d-flex justify-content-between align-items-center mb-2" key={type}>
-              <div>
-                <div className="fw-bold text-capitalize" style={{ fontSize: '0.85rem' }}>{type}</div>
-                <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                  {type === 'adults' ? '(12+)' : type === 'children' ? '(2-12)' : '(0-2)'}
-                </small>
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <button className="btn btn-sm btn-outline-secondary p-0 d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px' }} onClick={() => updateCount(type, 'dec')}><FaMinus size={8} /></button>
-                <span className="fw-bold text-center" style={{ width: '20px', fontSize: '0.9rem' }}>{counts[type]}</span>
-                <button className="btn btn-sm btn-outline-primary p-0 d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px' }} onClick={() => updateCount(type, 'inc')}><FaPlus size={8} /></button>
-              </div>
+          
+          {/* Adults */}
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <div className="fw-bold text-capitalize" style={{ fontSize: '0.85rem' }}>Adults</div>
+              <small className="text-muted" style={{ fontSize: '0.7rem' }}>(12+ Yrs)</small>
             </div>
-          ))}
+            <div className="d-flex align-items-center gap-2">
+              <button className="btn btn-sm btn-outline-secondary p-0 d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px' }} onClick={() => updateCount('adults', 'dec')}><FaMinus size={8} /></button>
+              <span className="fw-bold text-center" style={{ width: '20px', fontSize: '0.9rem' }}>{counts.adults}</span>
+              <button className="btn btn-sm btn-outline-primary p-0 d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px' }} onClick={() => updateCount('adults', 'inc')}><FaPlus size={8} /></button>
+            </div>
+          </div>
+
+          {/* Children */}
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <div className="fw-bold text-capitalize" style={{ fontSize: '0.85rem' }}>Children</div>
+              <small className="text-muted" style={{ fontSize: '0.7rem' }}>(2-12 Yrs)</small>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <button className="btn btn-sm btn-outline-secondary p-0 d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px' }} onClick={() => updateCount('children', 'dec')}><FaMinus size={8} /></button>
+              <span className="fw-bold text-center" style={{ width: '20px', fontSize: '0.9rem' }}>{counts.children}</span>
+              <button className="btn btn-sm btn-outline-primary p-0 d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px' }} onClick={() => updateCount('children', 'inc')}><FaPlus size={8} /></button>
+            </div>
+          </div>
+
+          {/* Infants */}
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <div className="fw-bold text-capitalize" style={{ fontSize: '0.85rem' }}>Infants</div>
+              <small className="text-muted" style={{ fontSize: '0.7rem' }}>(0-2 Yrs)</small>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <button className="btn btn-sm btn-outline-secondary p-0 d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px' }} onClick={() => updateCount('infants', 'dec')}><FaMinus size={8} /></button>
+              <span className="fw-bold text-center" style={{ width: '20px', fontSize: '0.9rem' }}>{counts.infants}</span>
+              <button className="btn btn-sm btn-outline-primary p-0 d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px' }} onClick={() => updateCount('infants', 'inc')}><FaPlus size={8} /></button>
+            </div>
+          </div>
+
           <h6 className="fw-bold mb-2 border-top pt-2 mt-2" style={{ fontSize: '0.9rem' }}>Class</h6>
           <div className="d-flex flex-wrap gap-1 mb-3">
-            {['Economy', 'Business', 'First'].map((cls) => (
+            {['Economy', 'Premium', 'Business', 'First'].map((cls) => (
               <button
                 key={cls}
                 className={`btn btn-sm flex-grow-1 ${cabinClass === cls ? 'btn-primary' : 'btn-outline-secondary'}`}
@@ -200,7 +236,7 @@ const HeroSection = () => {
 
     let searchData = {
       tripType: tripType,
-      travellers: travellerCounts,
+      travellers: travellerCounts, // Passing full object {adults, children, infants}
       cabinClass: cabinClass
     };
 
@@ -217,7 +253,7 @@ const HeroSection = () => {
         from: standardFrom,
         to: standardTo,
         date: standardDate,
-        returnDate: tripType === 'return' ? returnDate : null // Pass Return Date
+        returnDate: tripType === 'return' ? returnDate : null // <--- Pass Return Date
       };
     }
 
@@ -241,8 +277,20 @@ const HeroSection = () => {
     setMultiCitySegments(multiCitySegments.filter(s => s.id !== id));
   };
 
+  const bgImage = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80";
+  const brandOrange = '#ff6b00';
+
   return (
-    <div className="d-flex align-items-center justify-content-center min-vh-100 bg-secondary" style={{ paddingTop: '80px', paddingBottom: '80px' }}>
+    <div 
+      className="position-relative d-flex align-items-center justify-content-center" 
+      style={{ 
+        backgroundImage: `url(${bgImage})`, 
+        backgroundSize: 'cover', 
+        backgroundPosition: 'center', 
+        minHeight: '600px',
+        paddingTop: '80px', paddingBottom: '80px'
+      }}
+    >
       <div className="container">
         <div className="card border-0 shadow-lg" style={{ backgroundColor: 'rgba(255, 255, 255, 0.98)' }}>
           <div className="card-body p-3 p-md-4">
@@ -288,7 +336,7 @@ const HeroSection = () => {
                     </div>
                     <div className="col-6 col-md-2">
                       {index === 0 && <label className="form-label text-muted small fw-bold text-uppercase mb-1" style={{ fontSize: '0.7rem' }}>Date</label>}
-                      <input type="date" className="form-control form-control-sm bg-light border-0" value={segment.date} min={getTodayDate()} onChange={(e) => handleSegmentChange(segment.id, 'date', e.target.value)} />
+                      <input type="date" className="form-control form-control-sm bg-light border-1" value={segment.date} min={getTodayDate()} onChange={(e) => handleSegmentChange(segment.id, 'date', e.target.value)} />
                     </div>
 
                     {index === 0 ? (
@@ -337,7 +385,7 @@ const HeroSection = () => {
                     type="date" 
                     className={`form-control form-control-sm ${tripType === 'return' ? 'bg-white border-primary' : 'bg-light'}`} 
                     disabled={tripType === 'oneWay'} 
-                    min={standardDate} // Return date cannot be before Departure
+                    min={standardDate} 
                     value={returnDate} 
                     onChange={(e) => setReturnDate(e.target.value)} 
                   />
