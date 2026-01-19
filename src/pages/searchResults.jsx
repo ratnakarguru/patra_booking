@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
+
 const SearchResults = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -330,9 +331,13 @@ const SearchResults = () => {
                             </div>
                             <div className="small text-success fw-bold" style={{ fontSize: '0.75rem' }}>Free Cancellation</div>
                           </div>
-                          <button className="btn fw-bold text-white rounded-pill px-4 shadow-sm" style={{ backgroundColor: '#ff6b00' }}>
-                            BOOK
-                          </button>
+                          <button 
+  className="btn fw-bold text-white rounded-pill px-4 shadow-sm" 
+  style={{ backgroundColor: '#ff6b00' }}
+  onClick={() => navigate('/book', { state: flight })}
+>
+  BOOK
+</button>
                         </div>
 
                       </div>

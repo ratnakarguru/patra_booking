@@ -9,6 +9,8 @@ import Navbar from "./includes/topbar";
 import HeroSection from "./pages/home";
 import SearchResults from "./pages/searchResults";
 import Offer from "./pages/offer";
+import Footer from "./includes/footer";
+import BookingDetails from "./pages/booking";
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -17,7 +19,7 @@ function App() {
     // Simulate page load time
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 2000); 
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -32,10 +34,20 @@ function App() {
         <TopHeader />
         <Navbar />
         <Routes>
-          <Route path="/" element={<HeroSection />} />
+          <Route
+            path="/"
+            element={
+              <>
+                <HeroSection />
+                <Offer />
+              </>
+            }
+          />
           <Route path="/results" element={<SearchResults />} />
+          <Route path="/book" element={<BookingDetails />} />
         </Routes>
-        <Offer />
+
+        <Footer />
       </div>
     </Router>
   );
