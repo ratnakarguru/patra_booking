@@ -205,10 +205,37 @@ const HeroSection = () => {
       });
   }, []);
 
-  const handleSearch = () => {
-    // Navigate logic (same as before)
-    navigate('/results', { state: { /*...*/ } });
+  // inside HeroSection.js
+
+const handleSearch = () => {
+  let searchData = {
+    tripType: tripType,
+    travellers: travellerCounts,
+    cabinClass: cabinClass
   };
+
+  // 1. Check if it's Multi-City
+  if (tripType === 'multi') {
+    searchData = {
+      ...searchData,
+      type: 'Multi-City', 
+      segments: multiCitySegments // <--- PASSING THE SEGMENTS ARRAY
+    };
+  } else {
+    // 2. Standard OneWay / Return
+    searchData = {
+      ...searchData,
+      type: tripType === 'return' ? 'Round Trip' : 'One Way',
+      from: standardFrom,
+      to: standardTo,
+      date: standardDate,
+      returnDate: tripType === 'return' ? returnDate : null
+    };
+  }
+
+  console.log("Sending Data:", searchData); // Debugging
+  navigate('/results', { state: searchData }); // <--- DATA IS NOW SENT
+};
 
   const handleSegmentChange = (id, field, value) => {
     setMultiCitySegments(multiCitySegments.map(s => s.id === id ? { ...s, [field]: value } : s));
