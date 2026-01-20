@@ -44,7 +44,7 @@ function App() {
             }
           />
           <Route path="/results" element={<SearchResults />} />
-          <Route path="/book" element={<BookingDetails />} />
+          <Route path="/booking" element={<BookingDetails />} />
         </Routes>
 
         <Footer />

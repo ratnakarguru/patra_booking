@@ -5,13 +5,17 @@ import {
   FaAngleDown, FaAngleUp, FaCheckCircle, FaRegCircle
 } from "react-icons/fa";
 import "bootstrap/dist/css/bootstrap.min.css";
-import FlightFilters from "./flightfilters";
-import ModifySearch from "./modify";
 
-// --- 1. REUSABLE FLIGHT DETAILS PANEL (Unchanged) ---
+// Ensure you have these files in the same folder, or comment them out if testing without
+import FlightFilters from "./flightfilters"; 
+import ModifySearch from "./modify"; 
+
+// --- 1. REUSABLE FLIGHT DETAILS PANEL ---
 const FlightDetailsPanel = ({ flight, getAirlineLogo, airportMap }) => {
   const [activeTab, setActiveTab] = useState('flight');
   const getCity = (code) => airportMap[code]?.city || code;
+  
+  // Normalize: If it's a single flight object, wrap in array. If it has .flights (Multi-City), use that.
   const segments = flight.flights ? flight.flights : [flight];
 
   const renderContent = () => {
@@ -57,31 +61,6 @@ const FlightDetailsPanel = ({ flight, getAirlineLogo, airportMap }) => {
                     <div className="border-top pt-2 d-flex justify-content-between fw-bold mt-2"><span>Total Amount</span><span>₹{price.toLocaleString()}</span></div>
                 </div>
             );
-        case 'baggage':
-            return (
-                 <table className="table table-sm table-bordered small mb-0 mt-2">
-                     <thead className="table-light"><tr><th>Leg</th><th>Cabin</th><th>Check-in</th></tr></thead>
-                     <tbody>
-                        {segments.map((f, i) => (
-                            <tr key={i}>
-                                <td>{f.origin}-{f.destination}</td>
-                                <td>7 kg</td>
-                                <td>15 kg</td>
-                            </tr>
-                        ))}
-                     </tbody>
-                 </table>
-            );
-        case 'rules':
-            return (
-                <div className="py-2 small text-muted">
-                    <div className="alert alert-warning py-1 px-2 mb-2" style={{fontSize:'0.7rem'}}>
-                        Multi-City cancellation rules apply per leg.
-                    </div>
-                    <div><span className="fw-bold text-dark">Cancel:</span> ₹3,500 per leg</div>
-                    <div><span className="fw-bold text-dark">Change:</span> ₹3,000 + Fare Diff</div>
-                </div>
-            );
         default: return null;
     }
   };
@@ -89,7 +68,7 @@ const FlightDetailsPanel = ({ flight, getAirlineLogo, airportMap }) => {
   return (
     <div className="bg-white rounded border p-3 mt-2 shadow-sm">
         <ul className="nav nav-pills nav-fill small mb-3 border-bottom pb-2">
-            {['flight', 'fare', 'baggage', 'rules'].map(tab => (
+            {['flight', 'fare'].map(tab => (
                 <li className="nav-item" key={tab}>
                     <button className={`nav-link py-1 px-2 ${activeTab === tab ? 'active bg-dark text-white' : 'text-muted'}`} onClick={() => setActiveTab(tab)}>
                         {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -102,7 +81,7 @@ const FlightDetailsPanel = ({ flight, getAirlineLogo, airportMap }) => {
   );
 };
 
-// --- 2. CALENDAR COMPONENTS (Unchanged) ---
+// --- 2. CALENDAR COMPONENTS ---
 const CalendarStrip = ({ startDate, selectedDate, onDateSelect, minPrice }) => {
   const [viewStartDate, setViewStartDate] = useState(new Date(startDate || new Date()));
   const [dates, setDates] = useState([]);
@@ -169,7 +148,9 @@ const DualFareCalendar = ({ depDate, retDate, onDepChange, onRetChange }) => (
     </div>
 );
 
-// --- 3. FLIGHT CARDS (Unchanged) ---
+// --- 3. FLIGHT CARDS ---
+
+// A. Selectable Card (Used in Round Trip columns)
 const SelectableFlightCard = ({ flight, isSelected, onSelect, getAirlineLogo, airportMap }) => {
   const [showDetails, setShowDetails] = useState(false);
   return (
@@ -203,10 +184,23 @@ const SelectableFlightCard = ({ flight, isSelected, onSelect, getAirlineLogo, ai
   );
 };
 
+// B. Standard Card (Used in One Way / Multi City)
 const StandardFlightCard = ({ itinerary, getAirlineLogo, airportMap }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+
   const getCity = (code) => airportMap[code]?.city || code;
   const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : "";
+
+  // --- FIX: LOGIC MOVED INSIDE FUNCTION ---
+  const handleBook = () => {
+    const bookingPayload = {
+      totalPrice: itinerary.totalPrice,
+      tripType: itinerary.tripType,
+      segments: itinerary.flights // Already in the correct array format
+    };
+    navigate('/booking', { state: bookingPayload });
+  };
 
   return (
     <div className="card border-0 shadow-sm mb-4 bg-white">
@@ -273,7 +267,8 @@ const StandardFlightCard = ({ itinerary, getAirlineLogo, airportMap }) => {
           <div className="col-lg-3 mt-3 mt-lg-0 border-start-lg ps-lg-4 d-flex flex-column justify-content-center text-center">
               <div className="h2 mb-0 fw-bold text-dark">₹{itinerary.totalPrice.toLocaleString()}</div>
               <div className="small text-success fw-bold mb-3">Partially Refundable</div>
-              <button className="btn btn-lg fw-bold text-white rounded-pill shadow-sm w-100 mb-2" style={{ backgroundColor: "#ff6b00" }}>BOOK</button>
+              {/* --- FIX: CONNECTED HANDLER --- */}
+              <button className="btn btn-lg fw-bold text-white rounded-pill shadow-sm w-100 mb-2" style={{ backgroundColor: "#ff6b00" }} onClick={handleBook}>BOOK</button>
               <button className="btn btn-link text-decoration-none btn-sm p-0 text-secondary" onClick={() => setIsOpen(!isOpen)}>
                   {isOpen ? 'Hide Details' : 'View Details'} {isOpen ? <FaAngleUp/> : <FaAngleDown/>}
               </button>
@@ -285,7 +280,7 @@ const StandardFlightCard = ({ itinerary, getAirlineLogo, airportMap }) => {
   );
 };
 
-// --- 4. MAIN SEARCH RESULTS ---
+// --- 4. MAIN SEARCH RESULTS COMPONENT ---
 const SearchResults = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -313,6 +308,7 @@ const SearchResults = () => {
 
   const getCode = (str) => str ? str.match(/\(([^)]+)\)/)?.[1] || str : "";
   
+  // Mock Data Fetching
   useEffect(() => {
     setLoading(true);
     const AIRPORTS_API = 'https://raw.githubusercontent.com/algolia/datasets/master/airports/airports.json';
@@ -330,6 +326,7 @@ const SearchResults = () => {
             let outFlights = flightsData.filter(f => f.origin === fromCode && f.destination === toCode);
             let retFlights = flightsData.filter(f => f.origin === toCode && f.destination === fromCode);
             
+            // Mock Fallback if no flights found
             if (outFlights.length === 0) outFlights = [{...flightsData[0], origin: fromCode || 'DEL', destination: toCode || 'BOM', price: 5000, id: 901}];
             if (retFlights.length === 0) retFlights = outFlights.map(f => ({...f, origin: toCode || 'BOM', destination: fromCode || 'DEL', id: f.id + 100}));
 
@@ -391,8 +388,6 @@ const SearchResults = () => {
   };
 
   // --- FILTERING LOGIC ---
-
-  // Helper: Check if a time string (HH:MM) matches selected buckets
   const checkTimeMatch = (timeStr, selectedTimes) => {
     if (!selectedTimes || selectedTimes.length === 0) return true;
     const hour = parseInt(timeStr.split(':')[0], 10);
@@ -406,51 +401,29 @@ const SearchResults = () => {
     });
   };
 
-  // Master Filter Function
   const filterItem = (item) => {
-    // Standardize: item could be a Flight object (RoundTrip) or Itinerary object (OneWay/Multi)
-    // Extract price and flight list for checking
     const price = item.totalPrice || item.price;
-    const flights = item.flights ? item.flights : [item]; // If no .flights array, it's a single flight object
+    const flights = item.flights ? item.flights : [item];
     const firstFlight = flights[0];
     const lastFlight = flights[flights.length - 1];
 
-    // 1. Price Check
     if (price > priceRange) return false;
-
-    // 2. Stops Check (Check if any flight in the itinerary matches the stop preference, or if strict, all must match)
-    // For simplicity: If *any* flight in the chain has the selected stop count, we show it? 
-    // Usually, "Non-Stop" means the whole trip is non-stop. 
     if (selectedStops.length > 0) {
-        // If itinerary has multiple legs (Multi-City), "Non-Stop" applies to individual legs usually.
-        // Let's check if ALL legs match the criteria (STRICT) or ANY (LOOSE). 
-        // Let's go with: If any selected stop preference exists in the flight legs
         const hasMatch = flights.every(f => selectedStops.includes(f.stops));
         if (!hasMatch) return false;
     }
-
-    // 3. Airline Check
     if (selectedAirlines.length > 0) {
-        // If One-Way/Multi, all flights must be in selected airlines
         const hasMatch = flights.every(f => selectedAirlines.includes(f.airline));
         if (!hasMatch) return false;
     }
-
-    // 4. Time Check
-    // Departure: Check First Flight
     if (!checkTimeMatch(firstFlight.departureTime, selectedDepTimes)) return false;
-    
-    // Arrival: Check Last Flight
     if (!checkTimeMatch(lastFlight.arrivalTime, selectedArrTimes)) return false;
 
     return true;
   };
 
-  // Apply Filters
   const filteredOutbound = outboundList.filter(filterItem);
   const filteredReturn = returnList.filter(filterItem);
-  
-  // !!! CRITICAL FIX: Apply filter to itineraries for One Way / Multi City !!!
   const filteredItineraries = itineraries.filter(filterItem);
 
   const selectedOutbound = outboundList.find(f => f.id === selectedOutboundId);
@@ -459,9 +432,27 @@ const SearchResults = () => {
   
   const uniqueAirlines = [...new Set([...outboundList, ...returnList, ...itineraries.flatMap(i => i.flights.map(f=>f.airline))].map(f => f.airline || f))];
 
+  // --- FIX: ROUND TRIP BOOKING HANDLER ---
+  const handleRoundTripBook = () => {
+    if (!selectedOutbound || !selectedReturn) {
+        alert("Please select both flights.");
+        return;
+    }
+    const bookingPayload = {
+      totalPrice: grandTotal,
+      tripType: "Round Trip",
+      segments: [
+          // Leg 1 (Outbound)
+          selectedOutbound, 
+          // Leg 2 (Return)
+          selectedReturn
+      ]
+    };
+    navigate('/booking', { state: bookingPayload });
+  };
+
   return (
     <div className="bg-light min-vh-100 pb-5">
-      
       <ModifySearch />
       
       {searchParams.type === 'Round Trip' ? (
@@ -516,7 +507,8 @@ const SearchResults = () => {
                                 <div className="col-md-4 text-end">
                                     <div className="d-flex align-items-center justify-content-end gap-3">
                                         <div><div className="small text-muted text-uppercase">Total Fare</div><div className="h4 mb-0 fw-bold">₹{grandTotal.toLocaleString()}</div></div>
-                                        <button className="btn btn-primary fw-bold px-4 rounded-pill">BOOK NOW</button>
+                                        {/* --- FIX: CONNECTED ROUND TRIP BUTTON --- */}
+                                        <button className="btn btn-primary fw-bold px-4 rounded-pill" onClick={handleRoundTripBook}>BOOK NOW</button>
                                     </div>
                                 </div>
                             </div>
