@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   FaPlane, FaChevronLeft, FaChevronRight, FaExchangeAlt,
-  FaAngleDown, FaAngleUp, FaCheckCircle, FaRegCircle
+  FaAngleDown, FaAngleUp, FaCheckCircle, FaRegCircle, 
+  FaSortAmountDown, FaSortAmountUp
 } from "react-icons/fa";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -306,6 +307,10 @@ const SearchResults = () => {
   const [selectedDepTimes, setSelectedDepTimes] = useState([]);
   const [selectedArrTimes, setSelectedArrTimes] = useState([]); 
 
+  // --- NEW: Sorting State ---
+  const [sortBy, setSortBy] = useState('price'); // 'price', 'departure', 'arrival', 'duration'
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc', 'desc'
+
   const getCode = (str) => str ? str.match(/\(([^)]+)\)/)?.[1] || str : "";
   
   // Mock Data Fetching
@@ -422,9 +427,64 @@ const SearchResults = () => {
     return true;
   };
 
-  const filteredOutbound = outboundList.filter(filterItem);
-  const filteredReturn = returnList.filter(filterItem);
-  const filteredItineraries = itineraries.filter(filterItem);
+  // --- NEW: SORTING LOGIC ---
+  const sortItems = (items) => {
+    return [...items].sort((a, b) => {
+        // Extract correct properties based on if it's an Itinerary (nested flights) or Single Flight
+        const aFlights = a.flights || [a];
+        const bFlights = b.flights || [b];
+        const aFirst = aFlights[0];
+        const bFirst = bFlights[0];
+        const aLast = aFlights[aFlights.length - 1];
+        const bLast = bFlights[bFlights.length - 1];
+        const aPrice = a.totalPrice || a.price;
+        const bPrice = b.totalPrice || b.price;
+
+        // Helper to convert Duration "2h 10m" to minutes
+        const getMins = (str) => {
+            const h = str.match(/(\d+)h/)?.[1] || 0;
+            const m = str.match(/(\d+)m/)?.[1] || 0;
+            return parseInt(h) * 60 + parseInt(m);
+        };
+
+        // Comparison Logic
+        let diff = 0;
+        switch (sortBy) {
+            case 'price':
+                diff = aPrice - bPrice;
+                break;
+            case 'departure':
+                diff = aFirst.departureTime.localeCompare(bFirst.departureTime);
+                break;
+            case 'arrival':
+                diff = aLast.arrivalTime.localeCompare(bLast.arrivalTime);
+                break;
+            case 'duration':
+                const aDur = aFlights.reduce((acc, f) => acc + getMins(f.duration), 0);
+                const bDur = bFlights.reduce((acc, f) => acc + getMins(f.duration), 0);
+                diff = aDur - bDur;
+                break;
+            default:
+                diff = 0;
+        }
+
+        return sortOrder === 'asc' ? diff : -diff;
+    });
+  };
+
+  const handleSortClick = (key) => {
+      if (sortBy === key) {
+          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      } else {
+          setSortBy(key);
+          setSortOrder('asc');
+      }
+  };
+
+  // Apply Filter then Sort
+  const filteredOutbound = sortItems(outboundList.filter(filterItem));
+  const filteredReturn = sortItems(returnList.filter(filterItem));
+  const filteredItineraries = sortItems(itineraries.filter(filterItem));
 
   const selectedOutbound = outboundList.find(f => f.id === selectedOutboundId);
   const selectedReturn = returnList.find(f => f.id === selectedReturnId);
@@ -471,6 +531,11 @@ const SearchResults = () => {
              selectedArrTimes={selectedArrTimes} setSelectedArrTimes={setSelectedArrTimes} uniqueAirlines={uniqueAirlines}
           />
           <div className="col-lg-9">
+            
+            {/* --- NEW: SORT BAR --- */}
+           
+
+
             {loading ? (
               <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
             ) : searchParams.type === 'Round Trip' ? (
@@ -522,16 +587,49 @@ const SearchResults = () => {
                         <h5 className="fw-bold text-dark mb-0">Available Flights</h5>
                         <span className="badge bg-dark">{filteredItineraries.length} Options</span>
                     </div>
+                     <div className="bg-white border rounded mb-3 d-flex overflow-auto">
+  {[
+    { key: 'SortBy', label: 'SortBy' },
+    { key: 'departure', label: 'Departure' },
+    { key: 'duration', label: 'Duration' },
+    { key: 'arrival', label: 'Arrival' },
+    { key: 'price', label: 'Price' }
+  ].map((item) => {
+    const isActive = sortBy === item.key;
+
+    return (
+      <button
+        key={item.key}
+        className={`btn btn-link text-decoration-none flex-fill py-2 text-dark small fw-bold d-flex align-items-center justify-content-center gap-1 border-end rounded-0 ${
+          isActive ? 'bg-light text-primary' : ''
+        }`}
+        onClick={() => handleSortClick(item.key)}
+      >
+        {item.label}
+
+        {/* Icon always visible */}
+        {isActive ? (
+          sortOrder === 'asc' ? <FaSortAmountUp /> : <FaSortAmountDown />
+        ) : (
+          <FaSortAmountUp className="text-muted opacity-50" />
+        )}
+      </button>
+    );
+  })}
+</div>
+
                     {filteredItineraries.length > 0 ? (
                         filteredItineraries.map((itinerary) => (
                             <StandardFlightCard key={itinerary.id} itinerary={itinerary} getAirlineLogo={getAirlineLogo} airportMap={airportMap} />
                         ))
                     ) : (
                         <div className="alert alert-warning text-center">No flights found matching your filters.</div>
+                        
                     )}
                 </>
             )}
           </div>
+          
         </div>
       </div>
     </div>
