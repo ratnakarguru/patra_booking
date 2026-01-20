@@ -153,7 +153,7 @@ const ModifySearch = () => {
   const multiCityDate = segments.length > 0 ? segments[0].date : "";
 
   return (
-    <div className="bg-primary pb-4 pt-3 sticky-top" style={{ zIndex: 1020 }}>
+    <div className="bg-secondary pb-2 pt-3 sticky-top" style={{ zIndex: 1020 }}>
       <div className="container">
         
         {/* --- SUMMARY BAR --- */}
