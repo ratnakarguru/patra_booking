@@ -1,17 +1,306 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  FaPlane, 
-  FaRupeeSign, 
-  FaArrowRight, 
-  FaFilter, 
-  FaSun, 
-  FaMoon, 
-  FaCloudSun, 
-  FaClock 
-} from 'react-icons/fa';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  FaPlane,
+  FaChevronLeft,
+  FaChevronRight,
+  FaSuitcase,
+  FaFileInvoiceDollar,
+  FaExchangeAlt,
+  FaAngleDown,
+  FaAngleUp,
+  FaCheckCircle,
+  FaRegCircle,
+  FaCalendarAlt,
+  FaList,
+  FaMapMarkerAlt
+} from "react-icons/fa";
+import "bootstrap/dist/css/bootstrap.min.css";
+import FlightFilters from "./flightfilters";
 
+// --- 1. REUSABLE FLIGHT DETAILS PANEL ---
+const FlightDetailsPanel = ({ flight, getAirlineLogo, airportMap }) => {
+  const [activeTab, setActiveTab] = useState('flight');
+  
+  const getCity = (code) => airportMap[code]?.city || code;
+  const segments = flight.flights ? flight.flights : [flight];
+
+  const renderContent = () => {
+    switch (activeTab) {
+        case 'flight':
+            return (
+                <div className="py-2">
+                    {segments.map((f, i) => (
+                        <div key={i} className="mb-3 position-relative">
+                            {/* Visual Connector for Multi-Leg in Details */}
+                            {i < segments.length - 1 && (
+                                <div className="position-absolute border-start border-2 border-secondary" 
+                                     style={{left: '10px', top: '30px', bottom: '-15px', zIndex: 0, opacity: 0.2}}></div>
+                            )}
+                            <div className="d-flex align-items-center gap-2 mb-2 bg-light p-1 rounded" style={{zIndex: 1, position: 'relative'}}>
+                                <span className="badge bg-secondary">{i + 1}</span>
+                                <img src={getAirlineLogo(f.airline)} alt="logo" style={{height:'16px'}}/>
+                                <span className="small fw-bold">{f.airline} {f.flightCode}</span>
+                            </div>
+                            <div className="row small g-0 ps-3">
+                                <div className="col-4">
+                                    <div className="fw-bold">{f.departureTime}</div>
+                                    <div className="text-muted" style={{fontSize:'0.7rem'}}>{getCity(f.origin)}</div>
+                                </div>
+                                <div className="col-4 text-center align-self-center">
+                                    <div className="text-muted" style={{fontSize:'0.65rem'}}>{f.duration}</div>
+                                    <div className="border-top my-1"></div>
+                                </div>
+                                <div className="col-4 text-end">
+                                    <div className="fw-bold">{f.arrivalTime}</div>
+                                    <div className="text-muted" style={{fontSize:'0.7rem'}}>{getCity(f.destination)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        case 'fare':
+            const price = flight.totalPrice || flight.price;
+            return (
+                <div className="py-2 small">
+                    <div className="d-flex justify-content-between mb-1"><span>Base Fare</span><span>₹{(price * 0.8).toLocaleString()}</span></div>
+                    <div className="d-flex justify-content-between mb-1"><span>Tax & Surcharges</span><span>₹{(price * 0.2).toLocaleString()}</span></div>
+                    <div className="border-top pt-2 d-flex justify-content-between fw-bold mt-2"><span>Total Amount</span><span>₹{price.toLocaleString()}</span></div>
+                </div>
+            );
+        case 'baggage':
+            return (
+                 <table className="table table-sm table-bordered small mb-0 mt-2">
+                     <thead className="table-light"><tr><th>Leg</th><th>Cabin</th><th>Check-in</th></tr></thead>
+                     <tbody>
+                        {segments.map((f, i) => (
+                            <tr key={i}>
+                                <td>{f.origin}-{f.destination}</td>
+                                <td>7 kg</td>
+                                <td>15 kg</td>
+                            </tr>
+                        ))}
+                     </tbody>
+                 </table>
+            );
+        case 'rules':
+            return (
+                <div className="py-2 small text-muted">
+                    <div className="alert alert-warning py-1 px-2 mb-2" style={{fontSize:'0.7rem'}}>
+                        Multi-City cancellation rules apply per leg.
+                    </div>
+                    <div><span className="fw-bold text-dark">Cancel:</span> ₹3,500 per leg</div>
+                    <div><span className="fw-bold text-dark">Change:</span> ₹3,000 + Fare Diff</div>
+                </div>
+            );
+        default: return null;
+    }
+  };
+
+  return (
+    <div className="bg-white rounded border p-3 mt-2 shadow-sm">
+        <ul className="nav nav-pills nav-fill small mb-3 border-bottom pb-2">
+            {['flight', 'fare', 'baggage', 'rules'].map(tab => (
+                <li className="nav-item" key={tab}>
+                    <button className={`nav-link py-1 px-2 ${activeTab === tab ? 'active bg-dark text-white' : 'text-muted'}`} onClick={() => setActiveTab(tab)}>
+                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button>
+                </li>
+            ))}
+        </ul>
+        {renderContent()}
+    </div>
+  );
+};
+
+// --- 2. CALENDAR COMPONENTS ---
+const CalendarStrip = ({ startDate, selectedDate, onDateSelect, minPrice }) => {
+  const [viewStartDate, setViewStartDate] = useState(new Date(startDate || new Date()));
+  const [dates, setDates] = useState([]);
+
+  useEffect(() => { if(startDate) setViewStartDate(new Date(startDate)); }, [startDate]);
+
+  useEffect(() => {
+    const tempDates = [];
+    for (let i = 0; i < 10; i++) {
+      const d = new Date(viewStartDate);
+      d.setDate(viewStartDate.getDate() + i);
+      const isSelected = d.toDateString() === new Date(selectedDate).toDateString();
+      tempDates.push({ 
+          dateStr: d.toDateString(), 
+          day: d.toLocaleDateString('en-US', { weekday: 'short' }), 
+          dateNum: d.getDate(), 
+          price: minPrice + Math.floor(Math.random() * 1000) 
+      });
+    }
+    setDates(tempDates);
+  }, [viewStartDate, minPrice, selectedDate]);
+
+  const shift = (days) => {
+    const d = new Date(viewStartDate);
+    d.setDate(d.getDate() + days);
+    setViewStartDate(d);
+  };
+
+  return (
+    <div className="d-flex align-items-center gap-1 bg-white rounded border p-1 shadow-sm">
+        <button className="btn btn-sm btn-light rounded-circle p-1" onClick={() => shift(-5)}><FaChevronLeft/></button>
+        <div className="d-flex overflow-hidden gap-1 flex-grow-1">
+            {dates.map((item, idx) => {
+                const isActive = item.dateStr === new Date(selectedDate).toDateString();
+                return (
+                    <div key={idx} onClick={() => onDateSelect(item.dateStr)} 
+                         className={`text-center rounded p-1 flex-fill ${isActive ? 'bg-dark text-white' : 'bg-light'}`}
+                         style={{fontSize: '0.7rem', cursor: 'pointer', minWidth: '50px'}}>
+                        <div className="fw-bold">{item.dateNum} {item.day}</div>
+                        <div className={isActive ? 'text-warning' : 'text-muted'}>₹{item.price}</div>
+                    </div>
+                );
+            })}
+        </div>
+        <button className="btn btn-sm btn-light rounded-circle p-1" onClick={() => shift(5)}><FaChevronRight/></button>
+    </div>
+  );
+};
+
+const DualFareCalendar = ({ depDate, retDate, onDepChange, onRetChange }) => (
+    <div className="bg-light sticky-top py-2 border-bottom shadow-sm" style={{top: '56px', zIndex: 1000}}>
+        <div className="container">
+            <div className="row g-2">
+                <div className="col-md-6">
+                    <div className="small fw-bold text-muted mb-1 ms-1">DEPARTURE</div>
+                    <CalendarStrip startDate={depDate} selectedDate={depDate} onDateSelect={onDepChange} minPrice={4000} />
+                </div>
+                <div className="col-md-6">
+                    <div className="small fw-bold text-muted mb-1 ms-1">RETURN</div>
+                    <CalendarStrip startDate={retDate} selectedDate={retDate} onDateSelect={onRetChange} minPrice={4200} />
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+// --- 3. FLIGHT CARDS ---
+const SelectableFlightCard = ({ flight, isSelected, onSelect, getAirlineLogo, airportMap }) => {
+  const [showDetails, setShowDetails] = useState(false);
+  return (
+    <div className={`card mb-2 ${isSelected ? 'border-primary shadow bg-primary bg-opacity-10' : 'border-light shadow-sm bg-white'}`}>
+      <div className="card-body p-2" onClick={() => onSelect(flight)} style={{cursor: 'pointer'}}>
+        <div className="d-flex align-items-center justify-content-between">
+          <div className="d-flex align-items-center gap-2" style={{width: '25%'}}>
+             <img src={getAirlineLogo(flight.airline)} alt={flight.airline} style={{height:'20px', objectFit:'contain'}} />
+             <div>
+                <div className="fw-bold text-dark small">{flight.airline}</div>
+                <div className="text-muted" style={{fontSize: '0.6rem'}}>{flight.flightCode}</div>
+             </div>
+          </div>
+          <div className="text-center" style={{width: '45%'}}>
+             <div className="fw-bold small">{flight.departureTime} - {flight.arrivalTime}</div>
+             <div className="small text-muted" style={{fontSize: '0.6rem'}}>{flight.duration} • {flight.stops}</div>
+          </div>
+          <div className="d-flex align-items-center justify-content-end gap-2" style={{width: '30%'}}>
+             <div className="fw-bold text-dark small">₹{flight.price.toLocaleString()}</div>
+             {isSelected ? <FaCheckCircle className="text-primary" /> : <FaRegCircle className="text-secondary opacity-50" />}
+          </div>
+        </div>
+      </div>
+      <div className="card-footer p-0 bg-transparent border-top-0">
+          <button className="btn btn-link w-100 text-decoration-none py-0 text-muted" style={{fontSize: '0.65rem'}} onClick={(e) => { e.stopPropagation(); setShowDetails(!showDetails); }}>
+            {showDetails ? 'Hide' : 'Details'} {showDetails ? <FaAngleUp/> : <FaAngleDown/>}
+          </button>
+          {showDetails && <div className="px-2 pb-2"><FlightDetailsPanel flight={flight} getAirlineLogo={getAirlineLogo} airportMap={airportMap} /></div>}
+      </div>
+    </div>
+  );
+};
+
+// **FIXED StandardFlightCard FOR MULTI-CITY**
+const StandardFlightCard = ({ itinerary, getAirlineLogo, airportMap }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const getCity = (code) => airportMap[code]?.city || code;
+  const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : "";
+
+  return (
+    <div className="card border-0 shadow-sm mb-4 bg-white">
+      {/* Header Summary for Multi-City */}
+      {itinerary.tripType === 'Multi-City' && (
+         <div className="card-header bg-light border-bottom-0 d-flex gap-2 py-2">
+             <span className="badge bg-dark">Multi-City</span>
+             <div className="small fw-bold text-secondary d-flex align-items-center gap-2">
+                 {itinerary.flights.map((f, i) => (
+                    <span key={i} className="d-flex align-items-center gap-1">
+                        {f.origin} <FaPlane size={10}/> {f.destination} 
+                        {i < itinerary.flights.length - 1 && <span className="text-muted mx-1">|</span>}
+                    </span>
+                 ))}
+             </div>
+         </div>
+      )}
+
+      <div className="card-body p-3">
+        <div className="row">
+          <div className="col-lg-9">
+             <div className="d-flex flex-column gap-3">
+                {itinerary.flights.map((flight, idx) => (
+                  <div key={idx} className="d-flex align-items-center border rounded p-2 bg-white position-relative">
+                      {/* Leg Label */}
+                      {itinerary.tripType === 'Multi-City' && (
+                          <div className="position-absolute start-0 top-0 bg-secondary text-white small px-2 rounded-bottom-end" style={{fontSize:'0.6rem'}}>
+                              Leg {idx + 1} • {formatDate(flight.date)}
+                          </div>
+                      )}
+                      
+                      <div className="flex-grow-1 p-2 mt-2">
+                          <div className="row align-items-center">
+                             <div className="col-md-3 d-flex align-items-center gap-2">
+                                <img src={getAirlineLogo(flight.airline)} alt="logo" style={{height:'24px'}} />
+                                <div>
+                                    <div className="fw-bold small">{flight.airline}</div>
+                                    <div className="text-muted" style={{fontSize:'0.65rem'}}>{flight.flightCode}</div>
+                                </div>
+                             </div>
+                             <div className="col-md-6">
+                                <div className="d-flex align-items-center justify-content-between text-center">
+                                   <div>
+                                      <div className="h5 mb-0 fw-bold">{flight.departureTime}</div>
+                                      <div className="small text-muted">{flight.origin}</div>
+                                   </div>
+                                   <div className="d-flex flex-column align-items-center px-2">
+                                      <small className="text-muted" style={{fontSize:'0.6rem'}}>{flight.duration}</small>
+                                      <div className="border-top w-100 border-secondary opacity-25" style={{width:'40px'}}></div>
+                                   </div>
+                                   <div>
+                                      <div className="h5 mb-0 fw-bold">{flight.arrivalTime}</div>
+                                      <div className="small text-muted">{flight.destination}</div>
+                                   </div>
+                                </div>
+                             </div>
+                             <div className="col-md-3 text-end">
+                                <div className="small fw-bold text-truncate">{getCity(flight.destination)}</div>
+                             </div>
+                          </div>
+                      </div>
+                  </div>
+                ))}
+             </div>
+          </div>
+          <div className="col-lg-3 mt-3 mt-lg-0 border-start-lg ps-lg-4 d-flex flex-column justify-content-center text-center">
+              <div className="h2 mb-0 fw-bold text-dark">₹{itinerary.totalPrice.toLocaleString()}</div>
+              <div className="small text-success fw-bold mb-3">Partially Refundable</div>
+              <button className="btn btn-lg fw-bold text-white rounded-pill shadow-sm w-100 mb-2" style={{ backgroundColor: "#ff6b00" }}>BOOK</button>
+              <button className="btn btn-link text-decoration-none btn-sm p-0 text-secondary" onClick={() => setIsOpen(!isOpen)}>
+                  {isOpen ? 'Hide Details' : 'View Details'} {isOpen ? <FaAngleUp/> : <FaAngleDown/>}
+              </button>
+          </div>
+        </div>
+      </div>
+      {isOpen && <div className="border-top bg-light p-3"><FlightDetailsPanel flight={itinerary} getAirlineLogo={getAirlineLogo} airportMap={airportMap} /></div>}
+    </div>
+  );
+};
+
+// --- 4. MAIN SEARCH RESULTS ---
 const SearchResults = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -211,14 +500,7 @@ const SearchResults = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div className="small text-success fw-bold" style={{ fontSize: '0.75rem' }}>Free Cancellation</div>
-                          </div>
-                          <button className="btn fw-bold text-white rounded-pill px-4 shadow-sm" style={{ backgroundColor: '#ff6b00' }}>
-                            BOOK
-                          </button>
                         </div>
-
-                      </div>
                     </div>
                     <div style={{height: '80px'}}></div> 
                 </>
