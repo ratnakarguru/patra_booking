@@ -10,13 +10,16 @@ import {
 const ModifySearch = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const state = location.state || {}; // Get data passed from previous page
+  const state = location.state || {}; 
 
-  // --- 1. UI STATE (Collapse Toggle) ---
+  // --- 1. UI STATE ---
   const [isOpen, setIsOpen] = useState(false);
   const [activeSearch, setActiveSearch] = useState(null); 
+  
+  // *** FIX: New state to hold text while typing ***
+  const [searchQuery, setSearchQuery] = useState(""); 
 
-  // --- 2. DATA STATE (Search Parameters) ---
+  // --- 2. DATA STATE ---
   const [type, setType] = useState(state.type || 'One Way');
   
   const [from, setFrom] = useState(state.from || '');
@@ -28,7 +31,6 @@ const ModifySearch = () => {
   const [date, setDate] = useState(state.date || new Date().toISOString().split('T')[0]);
   const [returnDate, setReturnDate] = useState(state.returnDate || '');
 
-  // Default segments to prevent "undefined" errors
   const [segments, setSegments] = useState(state.segments || [
     { from: 'DEL', fromCity: 'Delhi (DEL)', to: 'BOM', toCity: 'Mumbai (BOM)', date: new Date().toISOString().split('T')[0] }
   ]);
@@ -39,14 +41,13 @@ const ModifySearch = () => {
   const [airportList, setAirportList] = useState([]);
   const [filteredAirports, setFilteredAirports] = useState([]);
 
-  // --- 3. HELPER: SAFE SPLIT (Prevents Crash) ---
-  // This function ensures we never call .split on undefined
+  // Helper
   const safeSplit = (str) => {
     if (!str) return ""; 
     return str.split('(')[0];
   };
 
-  // --- 4. LOAD & RESOLVE DATA ---
+  // --- 3. LOAD DATA ---
   useEffect(() => {
     fetch("https://raw.githubusercontent.com/algolia/datasets/master/airports/airports.json")
       .then(res => res.json())
@@ -54,16 +55,15 @@ const ModifySearch = () => {
         const major = data.filter(a => a.iata_code && a.name);
         setAirportList(major);
 
+        // Resolve Initial Labels
         if (state.from) {
             const found = major.find(a => a.iata_code === state.from);
             if (found) setFromCity(`${found.city} (${found.iata_code})`);
         }
-        
         if (state.to) {
             const found = major.find(a => a.iata_code === state.to);
             if (found) setToCity(`${found.city} (${found.iata_code})`);
         }
-
         if (state.segments && state.segments.length > 0) {
             const updatedSegments = state.segments.map(seg => {
                 const f = major.find(a => a.iata_code === seg.from);
@@ -80,15 +80,28 @@ const ModifySearch = () => {
       .catch(err => console.error("Failed to load airports", err));
   }, [state]);
 
-  // --- 5. HANDLERS ---
-  const handleAirportSearch = (query) => {
-    if (!query) { setFilteredAirports([]); return; }
-    const lowerQ = query.toLowerCase();
+  // --- 4. HANDLERS ---
+
+  // *** FIX: Handle Typing ***
+  const handleTyping = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val); // Update the input box visually
+    
+    // Filter the list
+    if (!val) { setFilteredAirports([]); return; }
+    const lowerQ = val.toLowerCase();
     const results = airportList.filter(a => 
         a.city.toLowerCase().includes(lowerQ) || 
         a.iata_code.toLowerCase().includes(lowerQ)
     ).slice(0, 5); 
     setFilteredAirports(results);
+  };
+
+  // *** FIX: Activate Field ***
+  const activateField = (field) => {
+      setActiveSearch(field);
+      setSearchQuery(""); // Clear text to allow fresh typing
+      setFilteredAirports([]);
   };
 
   const selectAirport = (airport, fieldType) => {
@@ -110,6 +123,7 @@ const ModifySearch = () => {
     
     setActiveSearch(null); 
     setFilteredAirports([]);
+    setSearchQuery("");
   };
 
   const handleSwap = () => {
@@ -134,7 +148,6 @@ const ModifySearch = () => {
       return isNaN(dateObj) ? d : dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
   };
 
-  // Safe access for Multi-City display
   const multiCityFrom = segments.length > 0 && segments[0].fromCity ? segments[0].fromCity : "Origin";
   const multiCityTo = segments.length > 0 && segments[segments.length-1].toCity ? segments[segments.length-1].toCity : "Dest";
   const multiCityDate = segments.length > 0 ? segments[0].date : "";
@@ -143,17 +156,15 @@ const ModifySearch = () => {
     <div className="bg-primary pb-4 pt-3 sticky-top" style={{ zIndex: 1020 }}>
       <div className="container">
         
-        {/* --- A. COMPACT SUMMARY BAR (Fixed Crash Here) --- */}
+        {/* --- SUMMARY BAR --- */}
         <div 
           className="bg-white rounded-3 shadow-sm p-2 px-3 d-flex align-items-center justify-content-between"
           onClick={() => setIsOpen(!isOpen)}
           style={{ cursor: 'pointer' }}
         >
-          {/* Summary Text */}
           <div className="d-flex align-items-center flex-wrap gap-2 gap-md-4 overflow-hidden">
             <div className="d-flex align-items-center gap-2">
                 <span className="fw-bold text-dark text-truncate" style={{maxWidth: '120px'}}>
-                    {/* Use safeSplit here to prevent the crash */}
                     {type === 'Multi-City' ? safeSplit(multiCityFrom) : safeSplit(fromCity)}
                 </span>
                 <FaExchangeAlt className="text-muted small" />
@@ -176,11 +187,10 @@ const ModifySearch = () => {
           </button>
         </div>
 
-        {/* --- B. COLLAPSIBLE FORM --- */}
+        {/* --- COLLAPSIBLE FORM --- */}
         <div className={`collapse ${isOpen ? 'show' : ''} mt-2`}>
             <div className="bg-white p-3 rounded-3 shadow-sm border position-relative">
                 
-                {/* Trip Type Tabs */}
                 <div className="d-flex gap-3 mb-3 border-bottom pb-2">
                     {['One Way', 'Round Trip', 'Multi-City'].map(t => (
                         <div key={t} className="form-check">
@@ -196,19 +206,21 @@ const ModifySearch = () => {
 
                 <form onSubmit={handleSearch}>
                     
-                    {/* STANDARD SEARCH (One Way / Round Trip) */}
+                    {/* STANDARD SEARCH */}
                     {type !== 'Multi-City' && (
                         <div className="row g-2 align-items-end">
+                            {/* FROM */}
                             <div className="col-md-3 position-relative">
                                 <label className="form-label small fw-bold text-muted mb-1">FROM</label>
-                                <div className="input-group" onClick={() => setActiveSearch('from')}>
+                                <div className="input-group" onClick={() => activateField('from')}>
                                     <span className="input-group-text bg-light border-end-0"><FaPlaneDeparture className="text-secondary"/></span>
                                     <input 
                                         type="text" className="form-control border-start-0 ps-0 fw-bold" 
-                                        value={activeSearch === 'from' ? '' : fromCity} 
+                                        // *** FIX: Show searchQuery when typing, otherwise show label ***
+                                        value={activeSearch === 'from' ? searchQuery : fromCity} 
                                         placeholder={activeSearch === 'from' ? "Type City..." : ""}
-                                        onChange={(e) => handleAirportSearch(e.target.value)}
-                                        readOnly={activeSearch !== 'from'}
+                                        onChange={handleTyping}
+                                        // Optional: keep focus logic simple
                                     />
                                 </div>
                                 {activeSearch === 'from' && filteredAirports.length > 0 && (
@@ -223,22 +235,23 @@ const ModifySearch = () => {
                                 )}
                             </div>
 
+                            {/* SWAP */}
                             <div className="col-md-1 text-center d-none d-md-block">
                                  <button type="button" className="btn btn-light rounded-circle shadow-sm border" onClick={handleSwap}>
                                      <FaExchangeAlt className="text-primary"/>
                                  </button>
                             </div>
 
+                            {/* TO */}
                             <div className="col-md-3 position-relative">
                                 <label className="form-label small fw-bold text-muted mb-1">TO</label>
-                                <div className="input-group" onClick={() => setActiveSearch('to')}>
+                                <div className="input-group" onClick={() => activateField('to')}>
                                     <span className="input-group-text bg-light border-end-0"><FaPlaneArrival className="text-secondary"/></span>
                                     <input 
                                         type="text" className="form-control border-start-0 ps-0 fw-bold" 
-                                        value={activeSearch === 'to' ? '' : toCity} 
+                                        value={activeSearch === 'to' ? searchQuery : toCity} 
                                         placeholder={activeSearch === 'to' ? "Type City..." : ""}
-                                        onChange={(e) => handleAirportSearch(e.target.value)}
-                                        readOnly={activeSearch !== 'to'}
+                                        onChange={handleTyping}
                                     />
                                 </div>
                                 {activeSearch === 'to' && filteredAirports.length > 0 && (
@@ -266,7 +279,7 @@ const ModifySearch = () => {
                             )}
 
                             <div className={type === 'Round Trip' ? 'col-md-12 mt-3' : 'col-md-3'}>
-                                 <button type="submit" className="btn btn-warning w-100 fw-bold text-white py-2">UPDATE SEARCH</button>
+                                 <button type="submit" className="btn btn-info w-100 fw-bold text-white py-2">UPDATE SEARCH</button>
                             </div>
                         </div>
                     )}
@@ -282,9 +295,9 @@ const ModifySearch = () => {
                                         <label className="form-label small fw-bold text-muted mb-0">From</label>
                                         <input 
                                             type="text" className="form-control form-control-sm fw-bold"
-                                            value={activeSearch === `seg-from-${i}` ? '' : seg.fromCity}
-                                            onClick={() => setActiveSearch(`seg-from-${i}`)}
-                                            onChange={(e) => handleAirportSearch(e.target.value)}
+                                            value={activeSearch === `seg-from-${i}` ? searchQuery : seg.fromCity}
+                                            onClick={() => activateField(`seg-from-${i}`)}
+                                            onChange={handleTyping}
                                             placeholder="Origin"
                                         />
                                         {activeSearch === `seg-from-${i}` && filteredAirports.length > 0 && (
@@ -302,9 +315,9 @@ const ModifySearch = () => {
                                         <label className="form-label small fw-bold text-muted mb-0">To</label>
                                         <input 
                                             type="text" className="form-control form-control-sm fw-bold"
-                                            value={activeSearch === `seg-to-${i}` ? '' : seg.toCity}
-                                            onClick={() => setActiveSearch(`seg-to-${i}`)}
-                                            onChange={(e) => handleAirportSearch(e.target.value)}
+                                            value={activeSearch === `seg-to-${i}` ? searchQuery : seg.toCity}
+                                            onClick={() => activateField(`seg-to-${i}`)}
+                                            onChange={handleTyping}
                                             placeholder="Destination"
                                         />
                                         {activeSearch === `seg-to-${i}` && filteredAirports.length > 0 && (
@@ -343,7 +356,7 @@ const ModifySearch = () => {
                                 <button type="button" className="btn btn-link text-decoration-none fw-bold" onClick={() => setSegments([...segments, {from:'', fromCity:'Select', to:'', toCity:'Select', date:''}])}>
                                     <FaPlus className="me-1"/> Add Flight
                                 </button>
-                                <button type="submit" className="btn btn-warning fw-bold text-white px-4">Update Search</button>
+                                <button type="submit" className="btn btn-info fw-bold text-white px-4">Update Search</button>
                              </div>
                         </div>
                     )}
