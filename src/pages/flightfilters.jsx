@@ -184,7 +184,7 @@ const FlightFilters = ({
     </div>
   );
 
-  return (
+ return (
     <>
       {/* 1. Mobile Trigger Button (Visible only on lg and below) */}
       <div className="d-lg-none mb-3">
@@ -204,24 +204,27 @@ const FlightFilters = ({
         </div>
       </div>
 
-      {/* 3. Mobile Offcanvas/Modal Overlay */}
+      {/* 3. Mobile Offcanvas (The Fix) */}
       <div 
         className={`offcanvas offcanvas-start ${showMobileFilters ? 'show' : ''}`} 
         tabIndex="-1" 
-        style={{ visibility: showMobileFilters ? 'visible' : 'hidden' }}
+        style={{ zIndex: 1045 }} // Ensure this is higher than your Navbar
+        aria-labelledby="mobileFilterLabel"
+        // removed manual 'visibility' style to let Bootstrap CSS handle transitions
       >
         <div className="offcanvas-header border-bottom">
-          <h5 className="offcanvas-title fw-bold">Filter Flights</h5>
+          <h5 className="offcanvas-title fw-bold" id="mobileFilterLabel">Filter Flights</h5>
           <button 
             type="button" 
             className="btn-close" 
             onClick={() => setShowMobileFilters(false)}
+            aria-label="Close"
           ></button>
         </div>
         <div className="offcanvas-body bg-light">
           <FilterContent />
         </div>
-        {/* Mobile Footer Apply Button */}
+        
         <div className="offcanvas-header border-top bg-white">
           <button 
             className="btn btn-primary w-100 rounded-pill py-2"
@@ -232,11 +235,12 @@ const FlightFilters = ({
         </div>
       </div>
       
-      {/* Backdrop for mobile */}
+      {/* 4. Backdrop (The Fix) */}
       {showMobileFilters && (
         <div 
           className="modal-backdrop fade show d-lg-none" 
           onClick={() => setShowMobileFilters(false)}
+          style={{ zIndex: 1040, position: 'fixed', top: 0, left: 0, width: '100%', height: '100%' }}
         ></div>
       )}
     </>
