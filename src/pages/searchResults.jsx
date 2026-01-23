@@ -3,20 +3,18 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   FaPlane, FaChevronLeft, FaChevronRight, FaExchangeAlt,
   FaAngleDown, FaAngleUp, FaCheckCircle, FaRegCircle, 
-  FaSortAmountDown, FaSortAmountUp
+  FaSortAmountDown, FaSortAmountUp, FaShoppingBag , FaSuitcase
 } from "react-icons/fa";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-// Ensure you have these files in the same folder, or comment them out if testing without
+// --- IMPORTS ---
 import FlightFilters from "./flightfilters"; 
 import ModifySearch from "./modify"; 
-
+import FlightLoader from "../includes/loader"; 
 // --- 1. REUSABLE FLIGHT DETAILS PANEL ---
 const FlightDetailsPanel = ({ flight, getAirlineLogo, airportMap }) => {
   const [activeTab, setActiveTab] = useState('flight');
   const getCity = (code) => airportMap[code]?.city || code;
-  
-  // Normalize: If it's a single flight object, wrap in array. If it has .flights (Multi-City), use that.
   const segments = flight.flights ? flight.flights : [flight];
 
   const renderContent = () => {
@@ -62,14 +60,51 @@ const FlightDetailsPanel = ({ flight, getAirlineLogo, airportMap }) => {
                     <div className="border-top pt-2 d-flex justify-content-between fw-bold mt-2"><span>Total Amount</span><span>₹{price.toLocaleString()}</span></div>
                 </div>
             );
-        default: return null;
+        return <div>{/* Your existing Fare Details code here */} Fare Breakdown Content</div>;
+      case 'baggage':
+        return (
+          <div className="animate__animated animate__fadeIn">
+             <h6 className="fw-bold small mb-3 text-secondary">Baggage Allowance</h6>
+             
+             <table className="table table-sm table-bordered text-center small mb-0">
+               <thead className="table-light text-secondary">
+                 <tr>
+                   <th className="fw-normal">Sector</th>
+                   <th className="fw-normal"><FaShoppingBag className="me-1"/> Cabin</th>
+                   <th className="fw-normal"><FaSuitcase className="me-1"/> Check-in</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 <tr>
+                   {/* <td className="fw-bold align-middle">DEL ➝ BOM</td> */}
+                   <td className="align-middle">
+                     <span className="fw-bold text-dark">7 kg</span>
+                     <div className="text-muted" style={{fontSize: '0.65rem'}}>1 piece per pax</div>
+                   </td>
+                   <td className="align-middle">
+                     <span className="fw-bold text-dark">15 kg</span>
+                     <div className="text-muted" style={{fontSize: '0.65rem'}}>1 piece per pax</div>
+                   </td>
+                 </tr>
+               </tbody>
+             </table>
+
+             <div className="alert alert-light border mt-3 mb-0 p-2 d-flex gap-2">
+                <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                  <strong>Note:</strong> Extra baggage can be purchased at the counter. Hand baggage must fit in the overhead bin.
+                </small>
+             </div>
+          </div>
+        );
+      default:
+        return null;
     }
   };
 
   return (
     <div className="bg-white rounded border p-3 mt-2 shadow-sm">
         <ul className="nav nav-pills nav-fill small mb-3 border-bottom pb-2">
-            {['flight', 'fare'].map(tab => (
+            {['flight', 'fare','baggage'].map(tab => (
                 <li className="nav-item" key={tab}>
                     <button className={`nav-link py-1 px-2 ${activeTab === tab ? 'active bg-dark text-white' : 'text-muted'}`} onClick={() => setActiveTab(tab)}>
                         {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -150,8 +185,6 @@ const DualFareCalendar = ({ depDate, retDate, onDepChange, onRetChange }) => (
 );
 
 // --- 3. FLIGHT CARDS ---
-
-// A. Selectable Card (Used in Round Trip columns)
 const SelectableFlightCard = ({ flight, isSelected, onSelect, getAirlineLogo, airportMap }) => {
   const [showDetails, setShowDetails] = useState(false);
   return (
@@ -167,7 +200,8 @@ const SelectableFlightCard = ({ flight, isSelected, onSelect, getAirlineLogo, ai
           </div>
           <div className="text-center" style={{width: '45%'}}>
              <div className="fw-bold small">{flight.departureTime} - {flight.arrivalTime}</div>
-             <div className="small text-muted" style={{fontSize: '0.6rem'}}>{flight.duration} • {flight.stops}</div>
+             {/* --- FIX: Added fallback for stops --- */}
+             <div className="small text-muted" style={{fontSize: '0.6rem'}}>{flight.duration} • {flight.stops || 'Nonstop'}</div>
           </div>
           <div className="d-flex align-items-center justify-content-end gap-2" style={{width: '30%'}}>
              <div className="fw-bold text-dark small">₹{flight.price.toLocaleString()}</div>
@@ -185,7 +219,6 @@ const SelectableFlightCard = ({ flight, isSelected, onSelect, getAirlineLogo, ai
   );
 };
 
-// B. Standard Card (Used in One Way / Multi City)
 const StandardFlightCard = ({ itinerary, getAirlineLogo, airportMap }) => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
@@ -193,12 +226,11 @@ const StandardFlightCard = ({ itinerary, getAirlineLogo, airportMap }) => {
   const getCity = (code) => airportMap[code]?.city || code;
   const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : "";
 
-  // --- FIX: LOGIC MOVED INSIDE FUNCTION ---
   const handleBook = () => {
     const bookingPayload = {
       totalPrice: itinerary.totalPrice,
       tripType: itinerary.tripType,
-      segments: itinerary.flights // Already in the correct array format
+      segments: itinerary.flights 
     };
     navigate('/booking', { state: bookingPayload });
   };
@@ -230,7 +262,6 @@ const StandardFlightCard = ({ itinerary, getAirlineLogo, airportMap }) => {
                               Leg {idx + 1} • {formatDate(flight.date)}
                           </div>
                       )}
-                      
                       <div className="flex-grow-1 p-2 mt-2">
                           <div className="row align-items-center">
                              <div className="col-md-3 d-flex align-items-center gap-2">
@@ -246,10 +277,15 @@ const StandardFlightCard = ({ itinerary, getAirlineLogo, airportMap }) => {
                                       <div className="h5 mb-0 fw-bold">{flight.departureTime}</div>
                                       <div className="small text-muted">{flight.origin}</div>
                                    </div>
+                                   
+                                   {/* --- FIX START: ADDED STOPS DISPLAY HERE --- */}
                                    <div className="d-flex flex-column align-items-center px-2">
                                       <small className="text-muted" style={{fontSize:'0.6rem'}}>{flight.duration}</small>
                                       <div className="border-top w-100 border-secondary opacity-25" style={{width:'40px'}}></div>
+                                      <small className="text-muted" style={{fontSize:'0.6rem'}}>{flight.stops || 'Nonstop'}</small>
                                    </div>
+                                   {/* --- FIX END --- */}
+
                                    <div>
                                       <div className="h5 mb-0 fw-bold">{flight.arrivalTime}</div>
                                       <div className="small text-muted">{flight.destination}</div>
@@ -268,7 +304,6 @@ const StandardFlightCard = ({ itinerary, getAirlineLogo, airportMap }) => {
           <div className="col-lg-3 mt-3 mt-lg-0 border-start-lg ps-lg-4 d-flex flex-column justify-content-center text-center">
               <div className="h2 mb-0 fw-bold text-dark">₹{itinerary.totalPrice.toLocaleString()}</div>
               <div className="small text-success fw-bold mb-3">Partially Refundable</div>
-              {/* --- FIX: CONNECTED HANDLER --- */}
               <button className="btn btn-lg fw-bold text-white rounded-pill shadow-sm w-100 mb-2" style={{ backgroundColor: "#ff6b00" }} onClick={handleBook}>BOOK</button>
               <button className="btn btn-link text-decoration-none btn-sm p-0 text-secondary" onClick={() => setIsOpen(!isOpen)}>
                   {isOpen ? 'Hide Details' : 'View Details'} {isOpen ? <FaAngleUp/> : <FaAngleDown/>}
@@ -307,84 +342,85 @@ const SearchResults = () => {
   const [selectedDepTimes, setSelectedDepTimes] = useState([]);
   const [selectedArrTimes, setSelectedArrTimes] = useState([]); 
 
-  // --- NEW: Sorting State ---
-  const [sortBy, setSortBy] = useState('price'); // 'price', 'departure', 'arrival', 'duration'
-  const [sortOrder, setSortOrder] = useState('asc'); // 'asc', 'desc'
+  // --- SORTING STATE ---
+  const [sortBy, setSortBy] = useState('price'); 
+  const [sortOrder, setSortOrder] = useState('asc');
 
   const getCode = (str) => str ? str.match(/\(([^)]+)\)/)?.[1] || str : "";
   
-  // Mock Data Fetching
+  // Data Fetching
   useEffect(() => {
     setLoading(true);
     const AIRPORTS_API = 'https://raw.githubusercontent.com/algolia/datasets/master/airports/airports.json';
     const FLIGHTS_API = "https://gist.githubusercontent.com/ratnakarguru/9c7e9b4ffcdbf653fe8c467b470f2eec/raw";
 
-    Promise.all([fetch(AIRPORTS_API).then(res => res.json()), fetch(FLIGHTS_API).then(res => res.json())])
-    .then(([airportsData, flightsData]) => {
-        const map = {};
-        airportsData.forEach(ap => { if(ap.iata_code) map[ap.iata_code] = { city: ap.city, name: ap.name }; });
-        setAirportMap(map);
+    // Simulate delay to show loader
+    setTimeout(() => {
+        Promise.all([fetch(AIRPORTS_API).then(res => res.json()), fetch(FLIGHTS_API).then(res => res.json())])
+        .then(([airportsData, flightsData]) => {
+            const map = {};
+            airportsData.forEach(ap => { if(ap.iata_code) map[ap.iata_code] = { city: ap.city, name: ap.name }; });
+            setAirportMap(map);
 
-        if (searchParams.type === 'Round Trip') {
-            const fromCode = getCode(searchParams.from);
-            const toCode = getCode(searchParams.to);
-            let outFlights = flightsData.filter(f => f.origin === fromCode && f.destination === toCode);
-            let retFlights = flightsData.filter(f => f.origin === toCode && f.destination === fromCode);
-            
-            // Mock Fallback if no flights found
-            if (outFlights.length === 0) outFlights = [{...flightsData[0], origin: fromCode || 'DEL', destination: toCode || 'BOM', price: 5000, id: 901}];
-            if (retFlights.length === 0) retFlights = outFlights.map(f => ({...f, origin: toCode || 'BOM', destination: fromCode || 'DEL', id: f.id + 100}));
-
-            const depRand = Math.floor(Math.random() * 500); 
-            const retRand = Math.floor(Math.random() * 500); 
-            outFlights = outFlights.map(f => ({ ...f, date: depDate, price: f.price + depRand }));
-            retFlights = retFlights.map(f => ({ ...f, date: retDate, price: f.price + retRand }));
-
-            setOutboundList(outFlights);
-            setReturnList(retFlights);
-            if(!selectedOutboundId && outFlights[0]) setSelectedOutboundId(outFlights[0].id);
-            if(!selectedReturnId && retFlights[0]) setSelectedReturnId(retFlights[0].id);
-
-        } else if (searchParams.type === 'Multi-City') {
-            const segments = searchParams.segments && searchParams.segments.length > 0 
-                ? searchParams.segments 
-                : [{from: 'DEL', to: 'BOM', date: new Date().toDateString()}, {from: 'BOM', to: 'BLR', date: new Date().toDateString()}];
-
-            const constructedItineraries = [];
-            for(let i=0; i<5; i++) { 
-                const itineraryFlights = [];
-                let totalPrice = 0;
+            if (searchParams.type === 'Round Trip') {
+                const fromCode = getCode(searchParams.from);
+                const toCode = getCode(searchParams.to);
+                let outFlights = flightsData.filter(f => f.origin === fromCode && f.destination === toCode);
+                let retFlights = flightsData.filter(f => f.origin === toCode && f.destination === fromCode);
                 
-                segments.forEach((seg, idx) => {
-                    const fCode = getCode(seg.from);
-                    const tCode = getCode(seg.to);
-                    let matches = flightsData.filter(f => f.origin === fCode && f.destination === tCode);
-                    if(matches.length === 0) matches = [{...flightsData[0], origin: fCode, destination: tCode, price: 4000 + (idx*1000), id: 999+i+idx}];
-                    const flight = matches[i % matches.length];
-                    itineraryFlights.push({...flight, date: seg.date, price: flight.price});
-                    totalPrice += flight.price;
-                });
-                
-                constructedItineraries.push({ 
-                    id: i, 
-                    tripType: 'Multi-City', 
-                    flights: itineraryFlights, 
-                    totalPrice 
-                });
+                if (outFlights.length === 0) outFlights = [{...flightsData[0], origin: fromCode || 'DEL', destination: toCode || 'BOM', price: 5000, id: 901}];
+                if (retFlights.length === 0) retFlights = outFlights.map(f => ({...f, origin: toCode || 'BOM', destination: fromCode || 'DEL', id: f.id + 100}));
+
+                const depRand = Math.floor(Math.random() * 500); 
+                const retRand = Math.floor(Math.random() * 500); 
+                outFlights = outFlights.map(f => ({ ...f, date: depDate, price: f.price + depRand }));
+                retFlights = retFlights.map(f => ({ ...f, date: retDate, price: f.price + retRand }));
+
+                setOutboundList(outFlights);
+                setReturnList(retFlights);
+                if(!selectedOutboundId && outFlights[0]) setSelectedOutboundId(outFlights[0].id);
+                if(!selectedReturnId && retFlights[0]) setSelectedReturnId(retFlights[0].id);
+
+            } else if (searchParams.type === 'Multi-City') {
+                const segments = searchParams.segments && searchParams.segments.length > 0 
+                    ? searchParams.segments 
+                    : [{from: 'DEL', to: 'BOM', date: new Date().toDateString()}, {from: 'BOM', to: 'BLR', date: new Date().toDateString()}];
+
+                const constructedItineraries = [];
+                for(let i=0; i<5; i++) { 
+                    const itineraryFlights = [];
+                    let totalPrice = 0;
+                    
+                    segments.forEach((seg, idx) => {
+                        const fCode = getCode(seg.from);
+                        const tCode = getCode(seg.to);
+                        let matches = flightsData.filter(f => f.origin === fCode && f.destination === tCode);
+                        if(matches.length === 0) matches = [{...flightsData[0], origin: fCode, destination: tCode, price: 4000 + (idx*1000), id: 999+i+idx}];
+                        const flight = matches[i % matches.length];
+                        itineraryFlights.push({...flight, date: seg.date, price: flight.price});
+                        totalPrice += flight.price;
+                    });
+                    
+                    constructedItineraries.push({ 
+                        id: i, 
+                        tripType: 'Multi-City', 
+                        flights: itineraryFlights, 
+                        totalPrice 
+                    });
+                }
+                setItineraries(constructedItineraries);
+
+            } else {
+                const fromCode = getCode(searchParams.from);
+                const toCode = getCode(searchParams.to);
+                let matches = flightsData.filter(f => f.origin === fromCode && f.destination === toCode);
+                if(matches.length === 0) matches = [{...flightsData[0], origin: fromCode || 'DEL', destination: toCode || 'BOM', price: 4000, id: 888}];
+                const constructed = matches.map(f => ({ id: f.id, tripType: 'One Way', flights: [{...f, date: depDate}], totalPrice: f.price }));
+                setItineraries(constructed);
             }
-            setItineraries(constructedItineraries);
-
-        } else {
-            // One Way
-            const fromCode = getCode(searchParams.from);
-            const toCode = getCode(searchParams.to);
-            let matches = flightsData.filter(f => f.origin === fromCode && f.destination === toCode);
-            if(matches.length === 0) matches = [{...flightsData[0], origin: fromCode || 'DEL', destination: toCode || 'BOM', price: 4000, id: 888}];
-            const constructed = matches.map(f => ({ id: f.id, tripType: 'One Way', flights: [{...f, date: depDate}], totalPrice: f.price }));
-            setItineraries(constructed);
-        }
-        setLoading(false);
-    });
+            setLoading(false);
+        });
+    }, 2000);
   }, [searchParams, depDate, retDate]);
 
   const getAirlineLogo = (name) => {
@@ -392,11 +428,10 @@ const SearchResults = () => {
     return logos[name] || null;
   };
 
-  // --- FILTERING LOGIC ---
+  // --- FILTERING & SORTING LOGIC ---
   const checkTimeMatch = (timeStr, selectedTimes) => {
     if (!selectedTimes || selectedTimes.length === 0) return true;
     const hour = parseInt(timeStr.split(':')[0], 10);
-    
     return selectedTimes.some(period => {
         if (period === 'Before 6 AM') return hour < 6;
         if (period === '6 AM - 12 PM') return hour >= 6 && hour < 12;
@@ -406,31 +441,59 @@ const SearchResults = () => {
     });
   };
 
+  // --- FILTERING LOGIC ---
+
   const filterItem = (item) => {
     const price = item.totalPrice || item.price;
     const flights = item.flights ? item.flights : [item];
     const firstFlight = flights[0];
     const lastFlight = flights[flights.length - 1];
 
+    // 1. Price Filter
     if (price > priceRange) return false;
+
+    // 2. Stops Filter (Updated for your JSON)
     if (selectedStops.length > 0) {
-        const hasMatch = flights.every(f => selectedStops.includes(f.stops));
+        const hasMatch = flights.every(f => {
+            // Get the value from JSON (e.g., "Non-Stop", "1 Stop")
+            let dataValue = f.stops; 
+            // If data is number (0) or string "0", treat as "Non-Stop"
+            if (dataValue === 0 || dataValue === '0' || dataValue === 'Nonstop') {
+                dataValue = 'Non-Stop';
+            }
+            
+            // If data is number (1) or string "1", treat as "1 Stop"
+            if (dataValue === 1 || dataValue === '1') {
+                dataValue = '1 Stop';
+            }
+
+            // If data is "2 Stops", "3 Stops", etc., map to "2+ Stops"
+            if ( (typeof dataValue === 'string' && parseInt(dataValue) >= 2) || dataValue >= 2 ) {
+                dataValue = '2+ Stops';
+            }
+
+            // Check if the normalized value is in the selected list
+            return selectedStops.includes(dataValue);
+        });
         if (!hasMatch) return false;
     }
+
+    // 3. Airline Filter
     if (selectedAirlines.length > 0) {
         const hasMatch = flights.every(f => selectedAirlines.includes(f.airline));
         if (!hasMatch) return false;
     }
+
+    // 4. Time Filters
     if (!checkTimeMatch(firstFlight.departureTime, selectedDepTimes)) return false;
     if (!checkTimeMatch(lastFlight.arrivalTime, selectedArrTimes)) return false;
 
     return true;
   };
 
-  // --- NEW: SORTING LOGIC ---
+  // *** SORTING FUNCTION ***
   const sortItems = (items) => {
     return [...items].sort((a, b) => {
-        // Extract correct properties based on if it's an Itinerary (nested flights) or Single Flight
         const aFlights = a.flights || [a];
         const bFlights = b.flights || [b];
         const aFirst = aFlights[0];
@@ -440,14 +503,12 @@ const SearchResults = () => {
         const aPrice = a.totalPrice || a.price;
         const bPrice = b.totalPrice || b.price;
 
-        // Helper to convert Duration "2h 10m" to minutes
         const getMins = (str) => {
             const h = str.match(/(\d+)h/)?.[1] || 0;
             const m = str.match(/(\d+)m/)?.[1] || 0;
             return parseInt(h) * 60 + parseInt(m);
         };
 
-        // Comparison Logic
         let diff = 0;
         switch (sortBy) {
             case 'price':
@@ -467,12 +528,15 @@ const SearchResults = () => {
             default:
                 diff = 0;
         }
-
         return sortOrder === 'asc' ? diff : -diff;
     });
   };
 
+  // *** SORT HANDLER ***
   const handleSortClick = (key) => {
+      // If user clicks the label "SortBy", ignore or reset
+      if (key === 'SortBy') return;
+
       if (sortBy === key) {
           setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
       } else {
@@ -481,7 +545,6 @@ const SearchResults = () => {
       }
   };
 
-  // Apply Filter then Sort
   const filteredOutbound = sortItems(outboundList.filter(filterItem));
   const filteredReturn = sortItems(returnList.filter(filterItem));
   const filteredItineraries = sortItems(itineraries.filter(filterItem));
@@ -492,7 +555,6 @@ const SearchResults = () => {
   
   const uniqueAirlines = [...new Set([...outboundList, ...returnList, ...itineraries.flatMap(i => i.flights.map(f=>f.airline))].map(f => f.airline || f))];
 
-  // --- FIX: ROUND TRIP BOOKING HANDLER ---
   const handleRoundTripBook = () => {
     if (!selectedOutbound || !selectedReturn) {
         alert("Please select both flights.");
@@ -501,18 +563,35 @@ const SearchResults = () => {
     const bookingPayload = {
       totalPrice: grandTotal,
       tripType: "Round Trip",
-      segments: [
-          // Leg 1 (Outbound)
-          selectedOutbound, 
-          // Leg 2 (Return)
-          selectedReturn
-      ]
+      segments: [selectedOutbound, selectedReturn]
     };
     navigate('/booking', { state: bookingPayload });
   };
-
-  return (
+   
+ return (
     <div className="bg-light min-vh-100 pb-5">
+      
+      {/* 2. Pass the real data to the Loader */}
+      {loading && (
+        <FlightLoader 
+            // Use real search params, with fallbacks to defaults if empty
+            routeFrom={searchParams.from || "DEL"}
+            routeTo={searchParams.to || "BOM"}
+            
+            
+            // "fromLabel" usually contains "Delhi (DEL)", pass that for the full name
+            fromAirport={searchParams.fromLabel || searchParams.from || "Origin"}
+            toAirport={searchParams.toLabel || searchParams.to || "Destination"}
+            
+            travelDate={searchParams.date || new Date()}
+            
+            // Only pass return date if it's a Round Trip
+            returnDate={searchParams.type === 'Round Trip' ? searchParams.returnDate : null}
+            
+            loadingMessage={`Searching flights from ${searchParams.from || 'Origin'} to ${searchParams.to || 'Dest'}...`}
+        />
+      )}
+
       <ModifySearch />
       
       {searchParams.type === 'Round Trip' ? (
@@ -532,10 +611,6 @@ const SearchResults = () => {
           />
           <div className="col-lg-9">
             
-            {/* --- NEW: SORT BAR --- */}
-           
-
-
             {loading ? (
               <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
             ) : searchParams.type === 'Round Trip' ? (
@@ -558,7 +633,7 @@ const SearchResults = () => {
                             </div>
                         </div>
                     </div>
-                    {/* Sticky Footer for Round Trip */}
+                    {/* Round Trip Footer */}
                     <div className="fixed-bottom bg-white shadow-lg p-3 border-top" style={{zIndex: 1050}}>
                         <div className="container">
                             <div className="row align-items-center">
@@ -572,7 +647,6 @@ const SearchResults = () => {
                                 <div className="col-md-4 text-end">
                                     <div className="d-flex align-items-center justify-content-end gap-3">
                                         <div><div className="small text-muted text-uppercase">Total Fare</div><div className="h4 mb-0 fw-bold">₹{grandTotal.toLocaleString()}</div></div>
-                                        {/* --- FIX: CONNECTED ROUND TRIP BUTTON --- */}
                                         <button className="btn btn-primary fw-bold px-4 rounded-pill" onClick={handleRoundTripBook}>BOOK NOW</button>
                                     </div>
                                 </div>
@@ -587,36 +661,41 @@ const SearchResults = () => {
                         <h5 className="fw-bold text-dark mb-0">Available Flights</h5>
                         <span className="badge bg-dark">{filteredItineraries.length} Options</span>
                     </div>
-                     <div className="bg-white border rounded mb-3 d-flex overflow-auto">
-  {[
-    { key: 'SortBy', label: 'SortBy' },
-    { key: 'departure', label: 'Departure' },
-    { key: 'duration', label: 'Duration' },
-    { key: 'arrival', label: 'Arrival' },
-    { key: 'price', label: 'Price' }
-  ].map((item) => {
-    const isActive = sortBy === item.key;
 
-    return (
-      <button
-        key={item.key}
-        className={`btn btn-link text-decoration-none flex-fill py-2 text-dark small fw-bold d-flex align-items-center justify-content-center gap-1 border-end rounded-0 ${
-          isActive ? 'bg-light text-primary' : ''
-        }`}
-        onClick={() => handleSortClick(item.key)}
-      >
-        {item.label}
+                    {/* --- SORT BAR (Your Design + Integrated Logic) --- */}
+                    <div className="bg-white border rounded mb-3 d-flex overflow-auto">
+                        {[
+                            { key: 'SortBy', label: 'Sort By' },
+                            { key: 'departure', label: 'Departure' },
+                            { key: 'duration', label: 'Duration' },
+                            { key: 'arrival', label: 'Arrival' },
+                            { key: 'price', label: 'Price' }
+                        ].map((item) => {
+                            const isActive = sortBy === item.key;
+                            const isLabel = item.key === 'SortBy';
 
-        {/* Icon always visible */}
-        {isActive ? (
-          sortOrder === 'asc' ? <FaSortAmountUp /> : <FaSortAmountDown />
-        ) : (
-          <FaSortAmountUp className="text-muted opacity-50" />
-        )}
-      </button>
-    );
-  })}
-</div>
+                            return (
+                            <button
+                                key={item.key}
+                                className={`btn btn-link text-decoration-none flex-fill py-2 text-dark small fw-bold d-flex align-items-center justify-content-center gap-1 border-end rounded-0 ${
+                                isActive ? 'bg-light text-primary' : ''
+                                } ${isLabel ? 'text-muted pe-none' : ''}`} // Disable click on "Sort By" label
+                                onClick={() => handleSortClick(item.key)}
+                            >
+                                {item.label}
+
+                                {/* Icon always visible, except for the Label */}
+                                {!isLabel && (
+                                    isActive ? (
+                                    sortOrder === 'asc' ? <FaSortAmountUp /> : <FaSortAmountDown />
+                                    ) : (
+                                    <FaSortAmountUp className="text-muted opacity-25" />
+                                    )
+                                )}
+                            </button>
+                            );
+                        })}
+                    </div>
 
                     {filteredItineraries.length > 0 ? (
                         filteredItineraries.map((itinerary) => (
@@ -624,12 +703,10 @@ const SearchResults = () => {
                         ))
                     ) : (
                         <div className="alert alert-warning text-center">No flights found matching your filters.</div>
-                        
                     )}
                 </>
             )}
           </div>
-          
         </div>
       </div>
     </div>

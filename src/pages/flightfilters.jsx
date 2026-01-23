@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   FaFilter, FaMoon, FaSun, FaClock, FaCloudSun, 
-  FaArrowRotateLeft, FaPlaneDeparture, FaPlaneArrival, FaXmark, FaCheck
+  FaArrowRotateLeft, FaPlaneDeparture, FaPlaneArrival, FaCheck
 } from 'react-icons/fa6';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -17,10 +17,12 @@ const FlightFilters = ({
 
   // --- Helper: Toggle Logic ---
   const toggleValue = (value, list, setList) => {
-    if (list.includes(value)) {
-      setList(list.filter((item) => item !== value));
+    // Ensure list is an array before checking
+    const currentList = list || []; 
+    if (currentList.includes(value)) {
+      setList(currentList.filter((item) => item !== value));
     } else {
-      setList([...list, value]);
+      setList([...currentList, value]);
     }
   };
 
@@ -34,9 +36,10 @@ const FlightFilters = ({
 
   // --- UI Components ---
   
-  // 1. Choice Chip (Replaces Checkboxes)
+  // 1. Choice Chip (Fixed: Added type="button" and robust styles)
   const ChoiceChip = ({ label, isSelected, onClick }) => (
     <button
+      type="button" // <--- Crucial: Prevents form submission/page reload
       onClick={onClick}
       className={`btn btn-sm d-flex align-items-center gap-2 border rounded-pill px-3 py-2 transition-all ${
         isSelected 
@@ -50,12 +53,13 @@ const FlightFilters = ({
     </button>
   );
 
-  // 2. Time Card (The 2x2 Grid Items)
+  // 2. Time Card
   const TimeOptionCard = ({ label, icon, value, selectedList, setList }) => {
-    const isActive = selectedList.includes(value);
+    const isActive = (selectedList || []).includes(value);
     return (
       <div className="col-6">
         <button
+          type="button" // <--- Crucial
           className={`btn w-100 p-2 d-flex flex-column align-items-center gap-2 border rounded-3 transition-all ${
             isActive ? 'bg-primary text-white border-primary shadow' : 'btn-light text-secondary border-light'
           }`}
@@ -95,6 +99,7 @@ const FlightFilters = ({
       <div className="d-flex justify-content-between align-items-center mb-3 px-1">
         <span className="fw-bold text-secondary small text-uppercase">Active Filters</span>
         <button 
+          type="button"
           onClick={resetAll} 
           className="btn btn-link text-decoration-none text-danger p-0 fw-bold d-flex align-items-center gap-1"
           style={{ fontSize: '0.8rem' }}
@@ -127,6 +132,7 @@ const FlightFilters = ({
             <ChoiceChip 
               key={stop} 
               label={stop} 
+              // This checks if the array includes the EXACT string (e.g. "1 Stop")
               isSelected={selectedStops.includes(stop)} 
               onClick={() => toggleValue(stop, selectedStops, setSelectedStops)} 
             />
@@ -184,11 +190,12 @@ const FlightFilters = ({
     </div>
   );
 
- return (
+  return (
     <>
-      {/* 1. Mobile Trigger Button (Visible only on lg and below) */}
+      {/* 1. Mobile Trigger Button */}
       <div className="d-lg-none mb-3">
         <button 
+          type="button"
           className="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 rounded-pill shadow-sm"
           onClick={() => setShowMobileFilters(true)}
         >
@@ -196,7 +203,7 @@ const FlightFilters = ({
         </button>
       </div>
 
-      {/* 2. Desktop Sidebar (Visible only on lg and up) */}
+      {/* 2. Desktop Sidebar */}
       <div className="d-none d-lg-block col-lg-3">
         <div className="sticky-top" style={{ top: '20px', zIndex: 10 }}>
           <h5 className="fw-bold mb-3 px-1">Filters</h5>
@@ -204,43 +211,32 @@ const FlightFilters = ({
         </div>
       </div>
 
-      {/* 3. Mobile Offcanvas (The Fix) */}
+      {/* 3. Mobile Offcanvas */}
       <div 
         className={`offcanvas offcanvas-start ${showMobileFilters ? 'show' : ''}`} 
         tabIndex="-1" 
-        style={{ zIndex: 1045 }} // Ensure this is higher than your Navbar
-        aria-labelledby="mobileFilterLabel"
-        // removed manual 'visibility' style to let Bootstrap CSS handle transitions
+        style={{ zIndex: 1045, visibility: showMobileFilters ? 'visible' : 'hidden' }}
       >
         <div className="offcanvas-header border-bottom">
-          <h5 className="offcanvas-title fw-bold" id="mobileFilterLabel">Filter Flights</h5>
-          <button 
-            type="button" 
-            className="btn-close" 
-            onClick={() => setShowMobileFilters(false)}
-            aria-label="Close"
-          ></button>
+          <h5 className="offcanvas-title fw-bold">Filter Flights</h5>
+          <button type="button" className="btn-close" onClick={() => setShowMobileFilters(false)}></button>
         </div>
         <div className="offcanvas-body bg-light">
           <FilterContent />
         </div>
-        
         <div className="offcanvas-header border-top bg-white">
-          <button 
-            className="btn btn-primary w-100 rounded-pill py-2"
-            onClick={() => setShowMobileFilters(false)}
-          >
+          <button type="button" className="btn btn-primary w-100 rounded-pill py-2" onClick={() => setShowMobileFilters(false)}>
             Show Results
           </button>
         </div>
       </div>
       
-      {/* 4. Backdrop (The Fix) */}
+      {/* 4. Backdrop */}
       {showMobileFilters && (
         <div 
           className="modal-backdrop fade show d-lg-none" 
           onClick={() => setShowMobileFilters(false)}
-          style={{ zIndex: 1040, position: 'fixed', top: 0, left: 0, width: '100%', height: '100%' }}
+          style={{ zIndex: 1040 }}
         ></div>
       )}
     </>

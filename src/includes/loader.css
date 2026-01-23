@@ -1,0 +1,197 @@
+/* loader.css */
+
+#load-over {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-content {
+  border-radius: 20px;
+  display: block;
+  width: 600px;
+  max-width: 95%;
+  height: auto;
+  min-height: 320px;
+  padding: 30px;
+  /* Ensure padding at bottom so text doesn't hit the wave image */
+  padding-bottom: 80px; 
+  background: url('../assets/bg-load.jpg') no-repeat right bottom; 
+  background-size: cover; 
+  background-color: #fff;
+  position: relative;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+  /* CRITICAL: Ensure overflow is visible so the plane and ticket can stick out */
+  overflow: visible; 
+}
+
+/* Text Section */
+.lds-txt {
+  text-align: left;
+  margin-bottom: 15px;
+  font-size: 22px;
+  color: #1a65c8;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 4px rgba(199, 232, 247, 0.5);
+  position: relative;
+  z-index: 5; /* Text stays on top */
+}
+
+.plds-txt {
+  font-size: 16px;
+  line-height: 24px;
+  margin-bottom: 20px;
+  letter-spacing: .02em;
+  font-weight: 600;
+  text-align: left;
+  color: #f54121;
+  position: relative;
+  z-index: 5;
+  max-width: 60%;
+}
+
+/* The Flying Plane/Cloud Image */
+.new-ld-im {
+  position: absolute;
+  top: -40px; 
+  right: -30px;
+  width: 250px;
+  z-index: 6; /* Highest priority */
+  pointer-events: none;
+}
+
+.new-ld-im img {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(5px 10px 15px rgba(0,0,0,0.1));
+}
+
+/* --- FIX FOR BOTTOM IMAGE --- */
+.new-ld-im2 {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  z-index: 1; /* Sits above white bg, below text */
+  line-height: 0;
+  overflow: hidden; /* Clips the rounded corners strictly */
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+
+.new-ld-im2 img {
+  width: 100%;
+  display: block;
+}
+
+/* --- FIX FOR FLIGHT DETAILS CARD --- */
+.ld-text {
+  position: absolute;
+  /* Push it down further so it doesn't cover the wave image */
+  bottom: -70px; 
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 50; /* Float above everything */
+  display: flex;
+  justify-content: center;
+}
+
+.flight-load-bottom {
+  padding: 15px 20px;
+  background: #fff;
+  width: 90%;
+  max-width: 480px;
+  border-radius: 15px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+/* Rest of the CSS remains the same... */
+.flight-col {
+  width: 30%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.airportname{
+    font-size: 10px;
+}
+.loaderfont20 {
+  font-size: 26px;
+  color: #e65d46;
+  font-weight: 800;
+  display: block;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.flight-nameloader {
+  font-weight: 500;
+  color: #555;
+  font-size: 13px;
+  margin: 0;
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+  text-transform: capitalize;
+}
+
+.anim-icon {
+  height: 24px;
+  object-fit: contain;
+}
+
+/* Responsive CSS */
+@media (max-width: 768px) {
+  .loading-content {
+    width: 90%;
+    min-height: 280px;
+    padding: 20px;
+    padding-bottom: 60px; /* Adjust padding for mobile */
+  }
+
+  .new-ld-im {
+    width: 140px;
+    top: -30px;
+    right: -10px;
+  }
+  
+  .lds-txt { 
+    font-size: 18px; 
+    max-width: 60%; 
+  }
+  
+  .plds-txt { 
+    font-size: 14px; 
+    max-width: 60%;
+  }
+  
+  .ld-text {
+    bottom: -60px; 
+  }
+
+  .flight-load-bottom {
+    width: 95%;
+    padding: 10px;
+  }
+  
+  .loaderfont20 { font-size: 20px; }
+  
+  .flight-nameloader { font-size: 11px; }
+}

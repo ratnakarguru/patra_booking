@@ -6,13 +6,21 @@ import {
   FaUser,
   FaPlus,
   FaMinus,
-  FaExclamationCircle // Imported for error display
+  FaExclamationCircle,
+  FaHistory // Imported history icon
 } from 'react-icons/fa';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // --- HELPER: Get Today's Date ---
 const getTodayDate = () => {
   return new Date().toISOString().split('T')[0];
+};
+
+// --- HELPER: Format Date for Display (e.g., "25 Oct") ---
+const formatDateDisplay = (dateString) => {
+  if (!dateString) return '';
+  const options = { day: 'numeric', month: 'short' };
+  return new Date(dateString).toLocaleDateString('en-US', options);
 };
 
 // --- REUSABLE COMPONENT: Airport Search ---
@@ -200,7 +208,7 @@ const HeroSection = () => {
   const navigate = useNavigate();
   const [tripType, setTripType] = useState('oneWay');
   const [airportData, setAirportData] = useState([]);
-  const [error, setError] = useState(''); // NEW: Error state
+  const [error, setError] = useState('');
   
   // Search States
   const [standardFrom, setStandardFrom] = useState('');
@@ -215,42 +223,44 @@ const HeroSection = () => {
     { id: 1, from: '', to: '', date: getTodayDate() }
   ]);
 
+  // --- NEW: Recent Searches State ---
+  const [recentSearches, setRecentSearches] = useState([]);
+
   useEffect(() => {
+    // Load Airports
     fetch('https://raw.githubusercontent.com/algolia/datasets/master/airports/airports.json')
       .then(res => res.json())
       .then(data => {
         const list = data.map(i => ({ code: i.iata_code, city: i.city, name: i.name })).filter(i => i.code);
         setAirportData(list);
       });
+
+    // --- NEW: Load Recent Searches from LocalStorage ---
+    const saved = localStorage.getItem('recentSearches');
+    if (saved) {
+      setRecentSearches(JSON.parse(saved));
+    }
   }, []);
 
-  // --- NEW: Validation Logic ---
+  // --- Validation Logic ---
   const validateSearch = () => {
     setError('');
 
     if (tripType === 'multi') {
       for (let i = 0; i < multiCitySegments.length; i++) {
         const seg = multiCitySegments[i];
-        
-        // Check for Empty Fields
         if (!seg.from.trim() || !seg.to.trim()) {
           setError(`Please select both origin and destination for Flight ${i + 1}.`);
           return false;
         }
-
-        // Check for Same Airports
         if (seg.from.trim().toLowerCase() === seg.to.trim().toLowerCase()) {
           setError(`Origin and Destination cannot be the same for Flight ${i + 1}.`);
           return false;
         }
-
-        // Check Date
         if (!seg.date) {
             setError(`Please select a date for Flight ${i + 1}.`);
             return false;
         }
-
-        // Date Continuity (Flight 2 cannot be before Flight 1)
         if (i > 0) {
             const prevDate = new Date(multiCitySegments[i-1].date);
             const currDate = new Date(seg.date);
@@ -261,7 +271,6 @@ const HeroSection = () => {
         }
       }
     } else {
-      // Standard OneWay/Return Validation
       if (!standardFrom.trim()) {
         setError('Please select an Origin airport.');
         return false;
@@ -293,14 +302,61 @@ const HeroSection = () => {
     return true;
   };
 
+  // --- NEW: Helper to Save Search ---
+  const saveRecentSearch = () => {
+    const newSearch = {
+      tripType,
+      travellers: travellerCounts,
+      cabinClass,
+      // Store specific data based on type
+      standardFrom: tripType !== 'multi' ? standardFrom : null,
+      standardTo: tripType !== 'multi' ? standardTo : null,
+      standardDate: tripType !== 'multi' ? standardDate : null,
+      returnDate: tripType === 'return' ? returnDate : null,
+      multiCitySegments: tripType === 'multi' ? multiCitySegments : null,
+      timestamp: Date.now()
+    };
+
+    // Filter duplicates (simple check based on From/To/Date)
+    const existing = recentSearches.filter(item => {
+        // Very basic deduplication logic
+        if (item.tripType !== newSearch.tripType) return true;
+        if (newSearch.tripType === 'multi') return true; // Always save multi for now complexity
+        return !(item.standardFrom === newSearch.standardFrom && item.standardTo === newSearch.standardTo && item.standardDate === newSearch.standardDate);
+    });
+
+    const updatedList = [newSearch, ...existing].slice(0, 5); // Keep last 5
+    setRecentSearches(updatedList);
+    localStorage.setItem('recentSearches', JSON.stringify(updatedList));
+  };
+
+  // --- NEW: Restore a Recent Search ---
+  const applyRecentSearch = (search) => {
+    setTripType(search.tripType);
+    setTravellerCounts(search.travellers);
+    setCabinClass(search.cabinClass);
+
+    if (search.tripType === 'multi') {
+        setMultiCitySegments(search.multiCitySegments);
+    } else {
+        setStandardFrom(search.standardFrom);
+        setStandardTo(search.standardTo);
+        setStandardDate(search.standardDate);
+        if (search.tripType === 'return') {
+            setReturnDate(search.returnDate);
+        }
+    }
+    setError(''); // Clear errors
+  };
+
   // --- SEARCH HANDLER ---
   const handleSearch = () => {
-    // 1. Run Validation
-    if (!validateSearch()) {
-      return; // Stop if invalid
-    }
+    if (!validateSearch()) return;
 
-    // 2. Prepare Data
+    // Save to History
+    saveRecentSearch();
+
+    // Prepare Data for Navigation
     let searchData = {
       tripType: tripType,
       travellers: travellerCounts,
@@ -331,7 +387,7 @@ const HeroSection = () => {
   // Multi-City Helpers
   const handleSegmentChange = (id, field, value) => {
     setMultiCitySegments(multiCitySegments.map(s => s.id === id ? { ...s, [field]: value } : s));
-    setError(''); // Clear error on change
+    setError('');
   };
 
   const handleAddSegment = () => {
@@ -363,7 +419,7 @@ const HeroSection = () => {
         <div className="card border-0 shadow-lg" style={{ backgroundColor: 'rgba(255, 255, 255, 0.98)' }}>
           <div className="card-body p-3 p-md-4">
             
-            {/* NEW: Validation Error Alert */}
+            {/* Validation Error Alert */}
             {error && (
               <div className="alert alert-danger d-flex align-items-center py-2 mb-3" role="alert">
                 <FaExclamationCircle className="me-2" />
@@ -498,6 +554,51 @@ const HeroSection = () => {
                 </div>
               </div>
             )}
+
+            {/* --- NEW: RECENT SEARCHES BAR --- */}
+            {recentSearches.length > 0 && (
+              <div className="mt-4 pt-3 border-top">
+                <div className="d-flex align-items-center gap-2 mb-2">
+                  <FaHistory className="text-secondary" />
+                  <small className="fw-bold text-uppercase text-secondary" style={{ fontSize: '0.75rem' }}>Recent Searches</small>
+                </div>
+                <div className="d-flex gap-2 overflow-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+                  {recentSearches.map((item, idx) => {
+                    // Generate Label logic
+                    let label = "";
+                    let subLabel = "";
+                    
+                    if (item.tripType === 'multi') {
+                        // Example: DEL -> BOM -> GOA
+                        const cities = item.multiCitySegments.map(s => s.from.split('(')[0].trim()).join(' → ');
+                        label = cities + ' → ' + item.multiCitySegments[item.multiCitySegments.length-1].to.split('(')[0].trim();
+                        subLabel = "Multi-City";
+                    } else {
+                        // Example: DEL -> BOM
+                        const fromCity = item.standardFrom.split('(')[0].trim();
+                        const toCity = item.standardTo.split('(')[0].trim();
+                        label = `${fromCity} ➝ ${toCity}`;
+                        subLabel = `${formatDateDisplay(item.standardDate)} ${item.tripType === 'return' ? '- ' + formatDateDisplay(item.returnDate) : ''}`;
+                    }
+
+                    return (
+                      <div 
+                        key={idx} 
+                        className="border rounded bg-light px-3 py-1 flex-shrink-0 d-flex flex-column justify-content-center"
+                        style={{ cursor: 'pointer', minWidth: '140px' }}
+                        onClick={() => applyRecentSearch(item)}
+                        title="Click to reload this search"
+                      >
+                         <div className="fw-bold text-dark text-truncate" style={{ fontSize: '0.8rem', maxWidth: '180px' }}>{label}</div>
+                         <div className="text-muted small" style={{ fontSize: '0.7rem' }}>{subLabel}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            {/* --- END RECENT SEARCHES --- */}
+
           </div>
         </div>
       </div>
