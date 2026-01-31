@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
@@ -71,3 +72,6 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/t
 =======
 # flight_booking
 >>>>>>> d5e9186a586e82f6a2fed2fff762a724aeca33d8
+=======
+# patra_booking
+>>>>>>> fd0b15d22399cea400e5131039e614194df82a93
