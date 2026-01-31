@@ -69,6 +69,7 @@ function AppContent() {
           element={
             <>
               <Hotels />
+              <Offer />
             </>
           }
         />

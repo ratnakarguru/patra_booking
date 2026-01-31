@@ -1,50 +1,63 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { City } from 'country-state-city';
 
 const Hotels = () => {
-  const navigate = useNavigate(); // 2. Initialize Hook
+  const navigate = useNavigate();
 
-  // ... [Keep your existing states: query, results, dates, guests, etc.] ...
+  // --- STATE ---
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Dates
   const [checkInDate, setCheckInDate] = useState(new Date());
   const [checkOutDate, setCheckOutDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
     return d;
   });
-  const [datePickerMode, setDatePickerMode] = useState('checkin'); 
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  // Guests & Price
   const [guests, setGuests] = useState({ rooms: 1, adults: 2, children: 0 });
+  const [priceRange, setPriceRange] = useState({ min: 1000, max: 20000 });
+
+  // UI Control
   const [activeDropdown, setActiveDropdown] = useState(null);
   const wrapperRef = useRef(null);
-const handleSearch = () => {
-    // Navigate to '/hotels' and pass the current state
+
+  // --- HELPERS ---
+  const handleSearch = () => {
     navigate('/Hotel_details', { 
-      state: { 
-        city: query, // The city text entered
-        checkIn: checkInDate,
-        checkOut: checkOutDate,
-        guests: guests
-      } 
+      state: { city: query, checkIn: checkInDate, checkOut: checkOutDate, guests, priceRange } 
     });
   };
-  // Load Bootstrap & Icons
+
+  const getDayLabel = (date) => date ? date.toLocaleDateString('en-US', { weekday: 'short' }) : '--';
+  const formatDate = (date) => date ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Select Date';
+
+  // Guest Logic
+  const updateGuest = (type, delta) => {
+    setGuests(prev => {
+      const newVal = prev[type] + delta;
+      if (type === 'rooms' && newVal < 1) return prev;
+      if (type === 'adults' && newVal < 1) return prev;
+      if (type === 'children' && newVal < 0) return prev;
+      return { ...prev, [type]: newVal };
+    });
+  };
+
+  // --- EFFECTS ---
   useEffect(() => {
     const btLink = document.createElement("link");
     btLink.href = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
     btLink.rel = "stylesheet";
     document.head.appendChild(btLink);
-
     const iconLink = document.createElement("link");
     iconLink.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css";
     iconLink.rel = "stylesheet";
     document.head.appendChild(iconLink);
-  }, []);
 
-  // Handle Click Outside to close dropdowns
-  useEffect(() => {
     function handleClickOutside(event) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
         setActiveDropdown(null);
@@ -54,311 +67,342 @@ const handleSearch = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [wrapperRef]);
 
-  // --- SEARCH LOGIC (Nominatim) ---
   useEffect(() => {
-    const timerId = setTimeout(async () => {
-      if (!query.trim() || query.length < 3) {
-        setResults([]);
-        return;
-      }
+    const timerId = setTimeout(() => {
+      if (!query.trim() || query.length < 3) { setResults([]); return; }
       setIsLoading(true);
       try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&addressdetails=1&limit=8`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const formattedResults = data.map(item => ({
-            name: item.name || item.address.city || item.address.town || item.address.village,
-            subLabel: [item.address.state, item.address.country].filter(Boolean).join(', '),
-            type: item.type 
-          }));
-          // Dedup
-          const uniqueResults = formattedResults.filter((v,i,a)=>a.findIndex(t=>(t.name===v.name))===i);
-          setResults(uniqueResults);
-        }
-      } catch (error) {
-        console.error("Search failed", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 500);
+        const allCities = City.getCitiesOfCountry('IN'); 
+        const filtered = allCities.filter(c => c.name.toLowerCase().startsWith(query.toLowerCase())).slice(0, 8); 
+        setResults(filtered.map(item => ({ name: item.name, subLabel: `${item.stateCode}, India` })));
+      } catch (e) { console.error(e); } 
+      finally { setIsLoading(false); }
+    }, 300);
     return () => clearTimeout(timerId);
   }, [query]);
 
-  // --- CALENDAR HELPERS ---
-  const formatDate = (date) => {
-    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
-  };
-
-  const getDayLabel = (date) => {
-    return date.toLocaleDateString('en-US', { weekday: 'long' });
-  }
-
-  const handleDateClick = (day) => {
-    // Clone to avoid mutation issues
-    const selected = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    
-    // Logic for consecutive selection
-    if (datePickerMode === 'checkin') {
-      setCheckInDate(selected);
-      // Automatically set checkout to next day if it's invalid
-      if (selected >= checkOutDate) {
-        const nextDay = new Date(selected);
-        nextDay.setDate(selected.getDate() + 1);
-        setCheckOutDate(nextDay);
-      }
-      setDatePickerMode('checkout'); // Switch to checkout selection automatically
-    } else {
-      // We are in checkout mode
-      if (selected <= checkInDate) {
-        // If user clicks a date before checkin, assume they want to change checkin instead
-        setCheckInDate(selected);
-        const nextDay = new Date(selected);
-        nextDay.setDate(selected.getDate() + 1);
-        setCheckOutDate(nextDay);
-        setDatePickerMode('checkout');
-      } else {
-        setCheckOutDate(selected);
-        setActiveDropdown(null); // Close calendar
-      }
-    }
-  };
-
-  const renderCalendar = () => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 = Sun
-    
-    const days = [];
-    // Empty slots for previous month
-    for (let i = 0; i < firstDayOfMonth; i++) {
-      days.push(<div key={`empty-${i}`} className="p-2"></div>);
-    }
-    
-    // Days
-    for (let d = 1; d <= daysInMonth; d++) {
-      const thisDate = new Date(year, month, d);
-      const isCheckIn = thisDate.toDateString() === checkInDate.toDateString();
-      const isCheckOut = thisDate.toDateString() === checkOutDate.toDateString();
-      const isInRange = thisDate > checkInDate && thisDate < checkOutDate;
-      const isPast = thisDate < new Date().setHours(0,0,0,0);
-
-      let bgClass = "bg-white text-dark";
-      if (isCheckIn) bgClass = "bg-primary text-white rounded-start";
-      if (isCheckOut) bgClass = "bg-primary text-white rounded-end";
-      if (isInRange) bgClass = "bg-primary bg-opacity-10";
-      if (isPast) bgClass = "text-muted opacity-25";
-
-      days.push(
-        <button 
-          key={d} 
-          disabled={isPast}
-          onClick={() => handleDateClick(d)}
-          className={`btn border-0 p-2 fw-bold w-100 ${bgClass}`}
-          style={{borderRadius: (isCheckIn || isCheckOut) ? '' : '0'}}
-        >
-          {d}
-        </button>
-      );
-    }
-    return days;
-  };
-
-  // --- GUEST HELPERS ---
-  const updateGuest = (type, delta) => {
-    setGuests(prev => {
-      const newVal = prev[type] + delta;
-      // Constraints
-      if (type === 'rooms' && newVal < 1) return prev;
-      if (type === 'adults' && newVal < 1) return prev;
-      if (type === 'children' && newVal < 0) return prev;
-      return { ...prev, [type]: newVal };
-    });
-  };
-
   return (
-    <div className="bg-light min-vh-100 font-sans" ref={wrapperRef}>
-      {/* Hero Section */}
-      <section className="py-5" style={{ background: 'linear-gradient(0deg, #221005, #7c3e15)' }}>
-        <div className="container mt-5">
-          <div className="bg-white rounded-3 p-4 shadow-lg position-relative" style={{ minHeight: '150px' }}>
-            
-            {/* --- MAIN SEARCH BAR ROW --- */}
-            <div className="row g-0 border rounded-3 position-relative" style={{borderColor: '#e7e7e7'}}>
-              
-              {/* 1. LOCATION INPUT */}
-              <div className="col-lg-4 col-md-12 p-3 border-end position-relative">
-                <label className="text-uppercase text-muted fw-bold d-block" style={{fontSize: '11px', marginBottom: '4px'}}>
-                   City, Property or Location
-                </label>
-                <input 
-                  type="text" 
-                  className="form-control border-0 fs-4 fw-bolder p-0 shadow-none text-truncate"
-                  placeholder="Where do you want to stay?"
-                  value={query}
-                  onChange={(e) => { setQuery(e.target.value); setActiveDropdown('location'); }}
-                  onClick={() => setActiveDropdown('location')}
-                />
-                <div className="text-muted small text-truncate">
-                   {results.length > 0 ? 'India' : 'Start typing...'}
-                </div>
+    <div className="font-sans" ref={wrapperRef}>
+      {/* BACKGROUND HERO */}
+      <section className="position-relative d-flex align-items-center justify-content-center px-3" style={{ minHeight: '85vh', paddingBottom: '10vh' }}>
+        <div className="position-absolute top-0 start-0 w-100 h-100" 
+             style={{
+               backgroundImage: "url('https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?q=80&w=2049&auto=format&fit=crop')",
+               backgroundSize: 'cover',
+               backgroundPosition: 'center'
+             }}></div>
+        <div className="position-absolute top-0 start-0 w-100 h-100 bg-black opacity-50"></div>
 
-                {/* Location Dropdown */}
-                {activeDropdown === 'location' && query.length > 0 && (
-                  <div className="list-group position-absolute start-0 top-100 w-100 shadow-lg mt-2 z-3 bg-white border-0 rounded-3 overflow-hidden" 
-                       style={{maxHeight: '350px', overflowY: 'auto'}}>
-                    {isLoading && <div className="p-3 text-center"><i className="fas fa-spinner fa-spin"></i></div>}
-                    {!isLoading && results.map((item, idx) => (
-                      <button key={idx} className="list-group-item list-group-item-action py-3 border-0"
-                        onClick={() => { setQuery(item.name); setActiveDropdown(null); }}>
-                        <div className="d-flex align-items-center">
-                          <i className="fas fa-map-marker-alt text-secondary fs-5 me-3"></i>
-                          <div>
-                            <div className="fw-bold text-dark">{item.name}</div>
-                            <div className="small text-muted">{item.subLabel}</div>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* 2. DATE PICKER (Merged Check-in/Check-out for visual flow) */}
-              <div className="col-lg-4 col-md-12 d-flex">
-                {/* Check In */}
-                <div className="flex-fill p-3 border-end position-relative cursor-pointer hover-bg-light"
-                     onClick={() => { setActiveDropdown('calendar'); setDatePickerMode('checkin'); }}>
-                  <label className="text-uppercase text-muted fw-bold d-flex align-items-center" style={{fontSize: '11px', marginBottom: '4px'}}>
-                    Check-In <i className="fas fa-chevron-down ms-1 text-primary"></i>
-                  </label>
-                  <div className="fs-4 fw-bolder">
-                    {checkInDate.getDate()} <span className='fs-6 fw-normal'>{checkInDate.toLocaleDateString('en-US', {month:'short', year: '2-digit'})}</span>
-                  </div>
-                  <div className="small text-muted">{getDayLabel(checkInDate)}</div>
-                </div>
-
-                {/* Check Out */}
-                <div className="flex-fill p-3 border-end position-relative cursor-pointer hover-bg-light"
-                     onClick={() => { setActiveDropdown('calendar'); setDatePickerMode('checkout'); }}>
-                  <label className="text-uppercase text-muted fw-bold d-flex align-items-center" style={{fontSize: '11px', marginBottom: '4px'}}>
-                    Check-Out <i className="fas fa-chevron-down ms-1 text-primary"></i>
-                  </label>
-                  <div className="fs-4 fw-bolder">
-                    {checkOutDate.getDate()} <span className='fs-6 fw-normal'>{checkOutDate.toLocaleDateString('en-US', {month:'short', year: '2-digit'})}</span>
-                  </div>
-                  <div className="small text-muted">{getDayLabel(checkOutDate)}</div>
-                </div>
-
-                {/* --- CALENDAR DROPDOWN --- */}
-                {activeDropdown === 'calendar' && (
-                  <div className="position-absolute start-0 top-100 mt-2 bg-white shadow-lg rounded-3 z-3 p-3" style={{width: '350px', left: '20%'}}>
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                      <button className="btn btn-sm btn-light rounded-circle" 
-                              onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))}>
-                        <i className="fas fa-chevron-left"></i>
-                      </button>
-                      <span className="fw-bold">
-                        {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                      </span>
-                      <button className="btn btn-sm btn-light rounded-circle" 
-                              onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))}>
-                        <i className="fas fa-chevron-right"></i>
-                      </button>
-                    </div>
-                    
-                    <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', fontSize: '12px' }}>
-                      {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => <div key={d} className="text-center text-muted fw-bold p-2">{d}</div>)}
-                      {renderCalendar()}
-                    </div>
-                    <div className="mt-3 text-center small text-primary fw-bold">
-                       {datePickerMode === 'checkin' ? 'Select Check-In Date' : 'Select Check-Out Date'}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 3. ROOMS & GUESTS */}
-              <div className="col-lg-4 col-md-12 p-3 position-relative cursor-pointer hover-bg-light"
-                   onClick={() => setActiveDropdown('guests')}>
-                <label className="text-uppercase text-muted fw-bold d-flex align-items-center" style={{fontSize: '11px', marginBottom: '4px'}}>
-                  Rooms & Guests <i className="fas fa-chevron-down ms-1 text-primary"></i>
-                </label>
-                <div className="fs-4 fw-bolder">
-                  {guests.rooms} <span className="fs-6 fw-normal">Room,</span> {guests.adults} <span className="fs-6 fw-normal">Adults</span>
-                </div>
-                <div className="small text-muted">{guests.children > 0 ? `${guests.children} Children` : 'No Children'}</div>
-
-                {/* Rooms/Guest Dropdown */}
-                {activeDropdown === 'guests' && (
-                   <div className="position-absolute end-0 top-100 mt-2 bg-white shadow-lg rounded-3 z-3 p-4" 
-                        style={{width: '300px', cursor: 'default'}} onClick={(e) => e.stopPropagation()}>
-                      
-                      {/* Item Row: Rooms */}
-                      <div className="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                          <div className="fw-bold">Rooms</div>
-                          <div className="small text-muted">Minimum 1</div>
-                        </div>
-                        <div className="border rounded-pill px-2 py-1">
-                          <button className="btn btn-sm btn-white text-primary" onClick={() => updateGuest('rooms', -1)} disabled={guests.rooms <= 1}>-</button>
-                          <span className="mx-2 fw-bold">{guests.rooms}</span>
-                          <button className="btn btn-sm btn-white text-primary" onClick={() => updateGuest('rooms', 1)}>+</button>
-                        </div>
-                      </div>
-
-                      {/* Item Row: Adults */}
-                      <div className="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                          <div className="fw-bold">Adults</div>
-                          <div className="small text-muted">+12 yrs</div>
-                        </div>
-                        <div className="border rounded-pill px-2 py-1">
-                          <button className="btn btn-sm btn-white text-primary" onClick={() => updateGuest('adults', -1)} disabled={guests.adults <= 1}>-</button>
-                          <span className="mx-2 fw-bold">{guests.adults}</span>
-                          <button className="btn btn-sm btn-white text-primary" onClick={() => updateGuest('adults', 1)}>+</button>
-                        </div>
-                      </div>
-
-                      {/* Item Row: Children */}
-                      <div className="d-flex justify-content-between align-items-center mb-4">
-                         <div>
-                          <div className="fw-bold">Children</div>
-                          <div className="small text-muted">0-12 yrs</div>
-                        </div>
-                        <div className="border rounded-pill px-2 py-1">
-                          <button className="btn btn-sm btn-white text-primary" onClick={() => updateGuest('children', -1)} disabled={guests.children <= 0}>-</button>
-                          <span className="mx-2 fw-bold">{guests.children}</span>
-                          <button className="btn btn-sm btn-white text-primary" onClick={() => updateGuest('children', 1)}>+</button>
-                        </div>
-                      </div>
-
-                      <button className="btn btn-outline-primary w-100 rounded-pill fw-bold" 
-                              onClick={() => setActiveDropdown(null)}>APPLY</button>
-                   </div>
-                )}
-              </div>
+        <div className="container position-relative z-1">
+            <div className="text-center mb-5">
+              <h1 className="text-white fw-bold display-4 mb-2">Escape to Paradise</h1>
+              <p className="text-white-50 fs-5">Find amazing deals on hotels, resorts, and private villas.</p>
             </div>
 
-            {/* SEARCH BUTTON */}
-           <div className="position-absolute start-50 translate-middle-x" style={{ bottom: '-25px' }}>
-            <button 
-            className="btn btn-warning rounded-pill px-5 py-2 fs-3 fw-bold shadow-lg text-uppercase"
-            style={{ background: 'linear-gradient(90deg, #fb8853, #e45f12)' }}
-            onClick={handleSearch} // 4. Attach Handler
-            >
-            Search
-            </button>
-        </div>
+            {/* SEARCH BAR */}
+            <div className="bg-white rounded-4 shadow-lg p-2 mx-auto" style={{maxWidth: '1200px'}}>
+              <div className="row g-0 align-items-center">
+                
+                {/* LOCATION */}
+                <div className="col-lg-3 col-md-12 position-relative border-end-lg mb-2 mb-lg-0">
+                   <div className="p-3 cursor-pointer hover-bg-light rounded-3" onClick={() => setActiveDropdown('location')}>
+                      <label className="text-uppercase fw-bold text-muted small mb-1">Location</label>
+                      <input type="text" className="form-control border-0 p-0 fs-6 fw-bold shadow-none bg-transparent text-truncate" 
+                        placeholder="Where are you going?" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
+                      <div className="small text-muted text-truncate">{results.length > 0 ? 'Select a city' : 'Search destinations'}</div>
+                   </div>
+                   {activeDropdown === 'location' && (
+                     <SmartDropdown width="100%">
+                         {results.length === 0 && <div className="p-3 text-muted text-center small">Type at least 3 letters...</div>}
+                         <div style={{maxHeight: '300px', overflowY:'auto'}}>
+                            {results.map((item, idx) => (
+                            <div key={idx} className="p-3 border-bottom hover-bg-light cursor-pointer d-flex align-items-center" onClick={(e) => { e.stopPropagation(); setQuery(item.name); setActiveDropdown(null); }}>
+                                <i className="fas fa-map-marker-alt text-muted me-3"></i>
+                                <div><div className="fw-bold text-dark">{item.name}</div><small className="text-muted">{item.subLabel}</small></div>
+                            </div>))}
+                         </div>
+                     </SmartDropdown>
+                   )}
+                </div>
 
-          </div>
+                {/* DATES */}
+                <div className="col-lg-4 col-md-12 position-relative border-end-lg mb-2 mb-lg-0 d-flex">
+                   <div className="flex-fill p-3 cursor-pointer hover-bg-light rounded-3" onClick={() => setActiveDropdown('dateRange')}>
+                      <label className="text-uppercase fw-bold text-muted small mb-1">Check-In</label>
+                      <div className={`fs-6 fw-bold ${!checkInDate ? 'text-muted' : ''}`}>{formatDate(checkInDate)}</div>
+                      <div className="small text-muted">{getDayLabel(checkInDate)}</div>
+                   </div>
+                   <div className="border-end my-3"></div>
+                   <div className="flex-fill p-3 cursor-pointer hover-bg-light rounded-3" onClick={() => setActiveDropdown('dateRange')}>
+                      <label className="text-uppercase fw-bold text-muted small mb-1">Check-Out</label>
+                      <div className={`fs-6 fw-bold ${!checkOutDate ? 'text-muted' : ''}`}>{formatDate(checkOutDate)}</div>
+                      <div className="small text-muted">{getDayLabel(checkOutDate)}</div>
+                   </div>
+                   {activeDropdown === 'dateRange' && (
+                      <SmartDropdown width="750px" padding="0">
+                          <DualMonthCalendar checkIn={checkInDate} checkOut={checkOutDate} 
+                            onChange={(start, end) => { setCheckInDate(start); setCheckOutDate(end); if (start && end) setActiveDropdown(null); }} />
+                      </SmartDropdown>
+                   )}
+                </div>
+
+                {/* GUESTS */}
+                <div className="col-lg-3 col-md-6 position-relative border-end-lg mb-2 mb-lg-0">
+                   <div className="p-3 cursor-pointer hover-bg-light rounded-3" onClick={() => setActiveDropdown('guests')}>
+                      <label className="text-uppercase fw-bold text-muted small mb-1">Guests</label>
+                      <div className="fs-6 fw-bold">{guests.adults + guests.children} Guests</div>
+                      <div className="small text-muted">{guests.rooms} Room</div>
+                   </div>
+                   {activeDropdown === 'guests' && (
+                     <SmartDropdown width="280px">
+                         {['rooms', 'adults', 'children'].map((type) => (
+                             <div key={type} className="d-flex justify-content-between align-items-center mb-3">
+                                 <div className="text-capitalize fw-bold">{type}</div>
+                                 <div className="d-flex align-items-center gap-2">
+                                     <button className="btn btn-sm btn-outline-secondary rounded-circle" onClick={() => updateGuest(type, -1)} disabled={guests[type] <= (type==='children'?0:1)}>-</button>
+                                     <span className="fw-bold" style={{width:'20px', textAlign:'center'}}>{guests[type]}</span>
+                                     <button className="btn btn-sm btn-outline-secondary rounded-circle" onClick={() => updateGuest(type, 1)}>+</button>
+                                 </div>
+                             </div>
+                         ))}
+                         <button className="btn btn-primary w-100 rounded-pill mt-2" onClick={() => setActiveDropdown(null)}>Done</button>
+                     </SmartDropdown>
+                   )}
+                </div>
+
+                {/* PRICE */}
+                <div className="col-lg-2 col-md-6 position-relative mb-2 mb-lg-0 d-flex align-items-center justify-content-between px-3">
+                   <div className="cursor-pointer hover-bg-light rounded-3 p-2 flex-grow-1" onClick={() => setActiveDropdown('price')}>
+                      <label className="text-uppercase fw-bold text-muted small mb-1 d-block">Price</label>
+                      <div className="fs-6 fw-bold text-truncate">₹{priceRange.max/1000}k</div>
+                   </div>
+                   <button className="btn btn-primary rounded-pill shadow-lg py-3 px-4 fw-bold text-uppercase ms-2" onClick={handleSearch}><i className="fas fa-search"></i></button>
+                   {activeDropdown === 'price' && (
+                     <SmartDropdown width="300px">
+                         <h6 className="fw-bold mb-3">Price per Night</h6>
+                         <div className="mb-3">
+                             <label className="small text-muted">Max Price</label>
+                             <input type="range" className="form-range" min="1000" max="50000" step="1000" value={priceRange.max} onChange={(e) => setPriceRange({...priceRange, max: parseInt(e.target.value)})} />
+                             <div className="text-end fw-bold">₹ {priceRange.max}</div>
+                         </div>
+                         <button className="btn btn-primary w-100 rounded-pill mt-3" onClick={() => setActiveDropdown(null)}>Apply</button>
+                     </SmartDropdown>
+                   )}
+                </div>
+              </div>
+            </div>
         </div>
       </section>
+
+      <style>{`
+        .hover-bg-light:hover { background-color: #f8f9fa; cursor: pointer; transition: 0.2s; }
+        .border-end-lg { border-right: 1px solid #e9ecef; }
+        @media (max-width: 991px) { .border-end-lg { border-right: none; border-bottom: 1px solid #e9ecef; } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        .cal-btn { width: 40px; height: 40px; font-size: 14px; margin: 2px auto; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: none; background: transparent; position: relative; z-index: 1; }
+        .cal-btn:hover:not(:disabled) { background-color: #e9ecef; }
+        .range-start { background-color: #0d6efd !important; color: white !important; border-radius: 50% 0 0 50% !important; }
+        .range-end { background-color: #0d6efd !important; color: white !important; border-radius: 0 50% 50% 0 !important; }
+        .in-range { background-color: #e7f1ff !important; color: #000 !important; border-radius: 0 !important; }
+        .range-both { border-radius: 50% !important; }
+        .holiday-badge { font-size: 20px; line-height: 0; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); color: #ffc107; }
+        .holiday-bg { background-color: #fff9db; font-weight: bold; color: #d63384; }
+      `}</style>
     </div>
   );
+};
+
+// --- SMART DROPDOWN ---
+const SmartDropdown = ({ children, width = '300px', padding = '1rem' }) => {
+  const [isFlipped, setIsFlipped] = useState(false);
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight) setIsFlipped(true);
+    }
+  }, []);
+  return (
+    <div ref={ref} className="position-absolute bg-white rounded-4 shadow-lg start-50 translate-middle-x"
+      style={{ zIndex: 1050, width: width, padding: padding, [isFlipped ? 'bottom' : 'top']: '110%', marginTop: isFlipped ? 0 : '10px', marginBottom: isFlipped ? '10px' : 0 }}
+      onClick={(e) => e.stopPropagation()}>
+      {children}
+    </div>
+  );
+};
+
+// --- DUAL CALENDAR WITH HOLIDAY FOOTER ---
+const DualMonthCalendar = ({ checkIn, checkOut, onChange }) => {
+    const [viewDate, setViewDate] = useState(new Date()); 
+    const [visibleHolidays, setVisibleHolidays] = useState([]);
+
+    // EXTENSIVE HOLIDAY LIST (Format: 'YYYY-M-D')
+    const HOLIDAYS = {
+
+    // --- 2026 ---
+    '2026-1-1': 'New Year',
+    '2026-1-14': 'Makar Sankranti',
+    '2026-1-26': 'Republic Day',
+    '2026-2-15': 'Maha Shivaratri',
+    '2026-3-4': 'Holi',
+    '2026-3-20': 'Eid-ul-Fitr',
+    '2026-3-27': 'Ram Navami',
+    '2026-4-3': 'Good Friday',
+    '2026-4-14': 'Ambedkar Jayanti',
+    '2026-8-15': 'Independence Day',
+    '2026-9-14': 'Ganesh Chaturthi',
+    '2026-10-2': 'Gandhi Jayanti',
+    '2026-10-20': 'Dussehra',
+    '2026-11-8': 'Diwali',
+    '2026-12-25': 'Christmas',
+
+    // --- 2027 ---
+    '2027-1-1': 'New Year',
+    '2027-1-14': 'Makar Sankranti',
+    '2027-1-26': 'Republic Day',
+    '2027-3-7': 'Maha Shivaratri',
+    '2027-3-22': 'Holi',
+    '2027-3-26': 'Good Friday',
+    '2027-4-14': 'Ambedkar Jayanti',
+    '2027-8-15': 'Independence Day',
+    '2027-9-4': 'Ganesh Chaturthi',
+    '2027-10-2': 'Gandhi Jayanti',
+    '2027-10-9': 'Dussehra',
+    '2027-10-29': 'Diwali',
+    '2027-12-25': 'Christmas',
+
+    // --- 2028 ---
+    '2028-1-1': 'New Year',
+    '2028-1-14': 'Makar Sankranti',
+    '2028-1-26': 'Republic Day',
+    '2028-2-24': 'Maha Shivaratri',
+    '2028-3-11': 'Holi',
+    '2028-4-4': 'Ram Navami',
+    '2028-4-14': 'Good Friday', // Also Ambedkar Jayanti
+    '2028-8-15': 'Independence Day',
+    '2028-8-23': 'Ganesh Chaturthi',
+    '2028-10-2': 'Gandhi Jayanti',
+    '2028-10-17': 'Diwali',
+    '2028-12-25': 'Christmas'
+};
+    // Update visible holidays list when view changes
+    useEffect(() => {
+        const list = [];
+        const checkMonth = (date) => {
+            const y = date.getFullYear();
+            const m = date.getMonth();
+            // Check all days in this month
+            for(let i=1; i<=31; i++) {
+                const key = `${y}-${m+1}-${i}`;
+                if(HOLIDAYS[key]) list.push({ date: new Date(y, m, i), name: HOLIDAYS[key] });
+            }
+        };
+        checkMonth(viewDate); // Left Month
+        checkMonth(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)); // Right Month
+        setVisibleHolidays(list);
+    }, [viewDate]);
+
+    const handlePrev = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+    const handleNext = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+
+    const handleDayClick = (date) => {
+        if (checkIn && !checkOut && date > checkIn) onChange(checkIn, date);
+        else onChange(date, null);
+    };
+
+    const renderMonth = (baseDate) => {
+        const year = baseDate.getFullYear();
+        const month = baseDate.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const firstDay = new Date(year, month, 1).getDay();
+        const days = [];
+        for (let i = 0; i < firstDay; i++) days.push(<div key={`e-${i}`}></div>);
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateObj = new Date(year, month, d);
+            const dateStr = `${year}-${month+1}-${d}`; 
+            
+            const isCheckIn = checkIn && dateObj.toDateString() === checkIn.toDateString();
+            const isCheckOut = checkOut && dateObj.toDateString() === checkOut.toDateString();
+            const isInRange = checkIn && checkOut && dateObj > checkIn && dateObj < checkOut;
+            const isHoliday = HOLIDAYS[dateStr];
+
+            let classes = "cal-btn ";
+            if (isCheckIn) classes += "range-start ";
+            else if (isCheckOut) classes += "range-end ";
+            else if (isInRange) classes += "in-range ";
+            else if (isHoliday) classes += "holiday-bg ";
+
+            // Handle Single Day Range (Circle)
+            if (isCheckIn && !checkOut) classes = classes.replace("range-start", "range-both ");
+
+            days.push(
+                <button key={d} className={classes} onClick={() => handleDayClick(dateObj)} title={isHoliday || ''}>
+                    {d}
+                    {isHoliday && !isCheckIn && !isCheckOut && !isInRange && <span className="holiday-badge text-warning">•</span>}
+                </button>
+            );
+        }
+        return days;
+    };
+
+    return (
+        <div className="p-3">
+            {/* Header Dates */}
+            <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                <div className="d-flex gap-4">
+                    <div className={checkIn ? "text-primary fw-bold" : "text-muted"}>
+                        {checkIn ? checkIn.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'2-digit'}) : 'Select Date'}
+                    </div>
+                    <span>-</span>
+                    <div className={checkOut ? "text-primary fw-bold" : "text-muted"}>
+                        {checkOut ? checkOut.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'2-digit'}) : 'Select Date'}
+                    </div>
+                </div>
+            </div>
+
+            {/* Calendars */}
+            <div className="d-flex gap-4">
+                <div style={{width: '320px'}}>
+                     <div className="d-flex justify-content-between align-items-center mb-2">
+                        <button className="btn btn-sm btn-light rounded-circle" onClick={handlePrev}><i className="fas fa-chevron-left"></i></button>
+                        <span className="fw-bold">{viewDate.toLocaleDateString('en-US', {month:'long', year:'numeric'})}</span>
+                        <div></div>
+                     </div>
+                     <div className="d-grid text-center text-muted small fw-bold mb-2" style={{gridTemplateColumns: 'repeat(7, 1fr)'}}>{['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=><div key={d}>{d}</div>)}</div>
+                     <div className="d-grid" style={{gridTemplateColumns: 'repeat(7, 1fr)', rowGap: '5px'}}>{renderMonth(viewDate)}</div>
+                </div>
+                <div style={{width: '320px'}} className="d-none d-md-block">
+                     <div className="d-flex justify-content-between align-items-center mb-2">
+                        <div></div>
+                        <span className="fw-bold">{new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1).toLocaleDateString('en-US', {month:'long', year:'numeric'})}</span>
+                        <button className="btn btn-sm btn-light rounded-circle" onClick={handleNext}><i className="fas fa-chevron-right"></i></button>
+                     </div>
+                     <div className="d-grid text-center text-muted small fw-bold mb-2" style={{gridTemplateColumns: 'repeat(7, 1fr)'}}>{['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=><div key={d}>{d}</div>)}</div>
+                     <div className="d-grid" style={{gridTemplateColumns: 'repeat(7, 1fr)', rowGap: '5px'}}>{renderMonth(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}</div>
+                </div>
+            </div>
+
+            {/* DYNAMIC HOLIDAY FOOTER LIST */}
+            <div className="mt-3 pt-2 border-top">
+                 {visibleHolidays.length > 0 ? (
+                     <div className="d-flex flex-wrap gap-3">
+                         {visibleHolidays.map((h, i) => (
+                             <div key={i} className="small text-muted d-flex align-items-center">
+                                 <span className="text-warning me-1 fs-5" style={{lineHeight: 0}}>•</span>
+                                 <span className="fw-bold text-dark me-1">{h.date.getDate()} {h.date.toLocaleDateString('en-US',{month:'short'})}</span> 
+                                 {h.name}
+                             </div>
+                         ))}
+                     </div>
+                 ) : (
+                     <div className="text-muted small text-center">No holidays in these months</div>
+                 )}
+            </div>
+        </div>
+    );
 };
 
 export default Hotels;

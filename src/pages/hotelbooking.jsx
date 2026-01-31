@@ -1,29 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom'; // 1. IMPORT HOOK
+import { useLocation } from 'react-router-dom';
 
 const HotelBooking = () => {
-  // 2. DEFINE SEARCH PARAMS AT THE TOP
   const location = useLocation();
-  const searchParams = location.state || {}; // This fixes "searchParams is not defined"
+  const searchParams = location.state || {}; 
 
-  // --- STATE MANAGEMENT ---
-  const [allHotels, setAllHotels] = useState([]);
+  // --- STATE ---
+  const [allHotels, setAllHotels] = useState([]); // Stores the 200 hotels from Gist
   const [filteredHotels, setFilteredHotels] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [cities, setCities] = useState([]); 
   
-  // Filters (Initialize with passed data OR defaults)
-  const [selectedCity, setSelectedCity] = useState(searchParams.city || "Bhubaneswar");
+  // Search State
+  const [searchText, setSearchText] = useState(searchParams.city || ""); 
   const [selectedType, setSelectedType] = useState("All");
   const [minRating, setMinRating] = useState(0);
 
-  // 3. DEFINE FORMAT DATE HELPER HERE
-  const formatDate = (date) => { // This fixes "formatDate is not defined"
-    return date ? new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '---';
+  // --- HELPERS ---
+  const formatDate = (date) => {
+    if (!date) return '---';
+    return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
 
-  // Helper: Get Random Image
-  const getHotelImage = (id, type) => {
+  const getHotelImage = (id) => {
     const images = [
       "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", 
       "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80",
@@ -32,101 +30,123 @@ const HotelBooking = () => {
       "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800&q=80",
       "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80",
     ];
-    return images[id % images.length];
+    return images[(id || 0) % images.length];
   };
 
-  // --- FETCH DATA ---
+  // --- 1. FETCH DATA FROM YOUR GIST ---
+ // --- FETCH DATA (Updated for New Structure & Localhost) ---
   useEffect(() => {
     const fetchHotels = async () => {
       try {
-        const response = await fetch('https://gist.github.com/ratnakarguru/a43a51ba64d74e3abb7ff764e6faabfc');
-        const data = await response.json();
-        const fileKey = Object.keys(data.files)[0];
-        const rawContent = data.files[fileKey].content;
-        const parsedHotels = JSON.parse(rawContent);
-        const uniqueCities = [...new Set(parsedHotels.map(h => h.city))];
+        setIsLoading(true);
+
+        const targetUrl = 'https://gist.githubusercontent.com/ratnakarguru/a43a51ba64d74e3abb7ff764e6faabfc/raw';
+        // Using Proxy for Localhost
+        const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
         
-        setAllHotels(parsedHotels);
-        setCities(uniqueCities);
-        setIsLoading(false);
+        if (!response.ok) throw new Error("Failed to fetch data");
+
+        const data = await response.json();
+
+        // FIX: The Gist is now an object { hotels: [...] }, not an array directly.
+        // We also check if 'data.hotels' exists.
+        let hotelList = [];
+        
+        if (Array.isArray(data)) {
+            hotelList = data; // Old format
+        } else if (data.hotels && Array.isArray(data.hotels)) {
+            hotelList = data.hotels; // New format
+        }
+
+        // FIX: Some hotels use 'category' instead of 'type'. We standardize this here.
+        // This ensures the Filter (Luxury/Budget) works for ALL 150 hotels.
+        const normalizedHotels = hotelList.map(h => ({
+            ...h,
+            type: h.type || h.category // Use 'type' if exists, else use 'category'
+        }));
+
+        setAllHotels(normalizedHotels);
+        setFilteredHotels(normalizedHotels);
+
       } catch (error) {
         console.error("Error fetching hotel data:", error);
+        alert("Failed to load hotels. Check console for details.");
+      } finally {
         setIsLoading(false);
       }
     };
 
     fetchHotels();
-
-    // Load Bootstrap & Icons
-    const btLink = document.createElement("link");
-    btLink.href = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
-    btLink.rel = "stylesheet";
-    document.head.appendChild(btLink);
     
+    // Inject CSS
+    const link = document.createElement("link");
+    link.href = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
     const iconLink = document.createElement("link");
     iconLink.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css";
     iconLink.rel = "stylesheet";
     document.head.appendChild(iconLink);
-
   }, []);
 
-  // --- FILTER LOGIC ---
+  // --- 2. FILTER LOGIC ---
   useEffect(() => {
+    // Only run filter if we have data
     if (allHotels.length > 0) {
-        let result = allHotels.filter(h => h.city.toLowerCase().includes(selectedCity.toLowerCase()));
-        
-        if (selectedType !== "All") {
-          result = result.filter(h => h.type === selectedType);
-        }
-        
-        if (minRating > 0) {
-          result = result.filter(h => h.rating >= minRating);
-        }
+      const query = searchText.toLowerCase().trim();
 
-        setFilteredHotels(result);
+      let result = allHotels.filter(h => {
+        // Safe checks using optional chaining (?)
+        const matchName = h.name?.toLowerCase().includes(query);
+        const matchCity = h.city?.toLowerCase().includes(query);
+        const matchArea = h.area?.toLowerCase().includes(query);
+        
+        // If search is empty, show everything. If not, match fields.
+        return query === "" || matchName || matchCity || matchArea;
+      });
+      
+      if (selectedType !== "All") {
+        result = result.filter(h => h.type === selectedType);
+      }
+      
+      if (minRating > 0) {
+        result = result.filter(h => h.rating >= minRating);
+      }
+
+      setFilteredHotels(result);
     }
-  }, [allHotels, selectedCity, selectedType, minRating]);
+  }, [searchText, selectedType, minRating, allHotels]);
 
   return (
     <div className="bg-light min-vh-100 font-sans">
       
-      {/* --- TOP SUMMARY BAR --- */}
+      {/* HEADER */}
       <div className="sticky-top bg-white shadow-sm py-3" style={{ zIndex: 1020 }}>
         <div className="container">
           <div className="row align-items-center">
             <div className="col-md-2">
-              <span className="badge bg-primary fs-6">MMT Clone</span>
+              <span className="badge fs-6" style={{backgroundColor: '#d46f1b'}}>PATRA TRAVELS</span>
             </div>
             <div className="col-md-10">
-              <div className="d-flex bg-light rounded-pill px-3 py-2 border cursor-pointer">
-                 {/* City */}
-                 <div className="me-4">
-                    <span className="text-muted small text-uppercase fw-bold d-block" style={{fontSize: '10px'}}>City</span>
-                    <select 
-                      className="form-select border-0 bg-transparent p-0 fw-bold text-primary shadow-none"
-                      value={selectedCity}
-                      onChange={(e) => setSelectedCity(e.target.value)}
-                    >
-                      {cities.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+              <div className="d-flex bg-light rounded-pill px-3 py-2 border">
+                 <div className="me-4 flex-grow-1">
+                    <span className="text-muted small text-uppercase fw-bold d-block" style={{fontSize: '10px'}}>Location / Hotel</span>
+                    <input 
+                      type="text" 
+                      className="form-control border-0 bg-transparent p-0 fw-bold shadow-none"
+                      style={{ color: '#d46f1b'}}
+                      value={searchText}
+                      onChange={(e) => setSearchText(e.target.value)}
+                      placeholder="Search city, hotel name..."
+                    />
                  </div>
-                 {/* Check In */}
                  <div className="me-4 border-start ps-4">
                     <span className="text-muted small text-uppercase fw-bold d-block" style={{fontSize: '10px'}}>Check-In</span>
-                    {/* USAGE FIX: formatDate and searchParams are now defined */}
                     <span className="fw-bold text-dark">{formatDate(searchParams.checkIn)}</span>
                  </div>
-                 {/* Check Out */}
                  <div className="me-4 border-start ps-4">
                     <span className="text-muted small text-uppercase fw-bold d-block" style={{fontSize: '10px'}}>Check-Out</span>
                     <span className="fw-bold text-dark">{formatDate(searchParams.checkOut)}</span>
-                 </div>
-                 {/* Guests */}
-                 <div className="border-start ps-4">
-                    <span className="text-muted small text-uppercase fw-bold d-block" style={{fontSize: '10px'}}>Guests</span>
-                    <span className="fw-bold text-dark">
-                        {searchParams.guests?.adults || 2} Adults, {searchParams.guests?.rooms || 1} Room
-                    </span>
                  </div>
               </div>
             </div>
@@ -134,15 +154,14 @@ const HotelBooking = () => {
         </div>
       </div>
 
-      {/* --- MAIN CONTENT --- */}
+      {/* BODY */}
       <div className="container py-4">
         <div className="row">
           
-          {/* --- FILTERS SIDEBAR --- */}
+          {/* FILTERS */}
           <div className="col-lg-3 d-none d-lg-block">
             <div className="bg-white rounded shadow-sm p-3 mb-3">
               <h5 className="fw-bold mb-3">Filters</h5>
-              
               <div className="mb-4">
                 <label className="fw-bold small text-muted mb-2">HOTEL TYPE</label>
                 {['All', 'Luxury', 'Premium', 'Budget'].map(type => (
@@ -155,13 +174,10 @@ const HotelBooking = () => {
                       checked={selectedType === type}
                       onChange={() => setSelectedType(type)}
                     />
-                    <label className="form-check-label" htmlFor={`type-${type}`}>
-                      {type}
-                    </label>
+                    <label className="form-check-label" htmlFor={`type-${type}`}>{type}</label>
                   </div>
                 ))}
               </div>
-
               <div className="mb-4">
                 <label className="fw-bold small text-muted mb-2">RATING</label>
                 {[4.5, 4.0, 3.5].map(rate => (
@@ -181,59 +197,51 @@ const HotelBooking = () => {
             </div>
           </div>
 
-          {/* --- HOTEL LIST --- */}
+          {/* LIST */}
           <div className="col-lg-9">
             {isLoading && (
                 <div className="text-center py-5">
                     <div className="spinner-border text-primary" role="status"></div>
-                    <p className="mt-2 text-muted">Fetching hotels...</p>
+                    <p className="mt-2 text-muted">Loading 200+ Hotels...</p>
                 </div>
             )}
 
             {!isLoading && filteredHotels.length === 0 && (
-              <div className="alert alert-warning">No hotels found in {selectedCity} for these filters.</div>
+              <div className="alert alert-warning text-center p-5">
+                <h4>No hotels found</h4>
+                <p>We couldn't find matches for "<strong>{searchText}</strong>".</p>
+                <button className="btn btn-outline-dark btn-sm" onClick={() => setSearchText('')}>Show All Hotels</button>
+              </div>
             )}
 
-            {!isLoading && filteredHotels.map((hotel) => (
-              <div key={hotel.id} className="card border-0 shadow-sm mb-4 overflow-hidden hover-shadow">
+            {!isLoading && filteredHotels.map((hotel, index) => (
+              <div key={index} className="card border-0 shadow-sm mb-4 overflow-hidden hover-shadow">
                 <div className="row g-0">
                   <div className="col-md-4">
-                    <img 
-                      src={getHotelImage(hotel.id, hotel.type)} 
-                      className="img-fluid h-100 w-100 object-fit-cover" 
-                      alt={hotel.name}
-                      style={{minHeight: '200px'}}
-                    />
+                    {/* Using hotel.id if available, otherwise index */}
+                    <img src={getHotelImage(hotel.id || index)} className="img-fluid h-100 w-100 object-fit-cover" alt={hotel.name} style={{minHeight: '220px'}} />
                   </div>
                   <div className="col-md-8">
-                    <div className="card-body d-flex flex-column h-100">
+                    <div className="card-body d-flex flex-column h-100 p-4">
                       <div className="d-flex justify-content-between">
                         <div>
                           <div className="d-flex align-items-center mb-1">
                              {[...Array(5)].map((_, i) => (
-                              <i key={i} className={`fas fa-star small ${i < Math.floor(hotel.rating) ? 'text-warning' : 'text-muted opacity-25'}`}></i>
-                            ))}
-                            <span className="badge bg-light text-dark border ms-2" style={{fontSize: '10px'}}>{hotel.type}</span>
+                              <i key={i} className={`fas fa-star small ${i < Math.floor(hotel.rating || 0) ? 'text-warning' : 'text-muted opacity-25'}`}></i>
+                             ))}
+                             <span className="badge bg-light text-dark border ms-2" style={{fontSize: '10px'}}>{hotel.type}</span>
                           </div>
                           <h4 className="card-title fw-bold mb-1">{hotel.name}</h4>
-                          <p className="card-text text-muted small">
-                            <i className="fas fa-map-marker-alt me-1 text-primary"></i> {hotel.area}, {hotel.city}
-                          </p>
+                          <p className="card-text text-muted small"><i className="fas fa-map-marker-alt me-1 text-primary"></i> {hotel.area}, {hotel.city}</p>
                         </div>
                         <div className="text-end">
-                           <span className="badge bg-primary fs-5 p-2 rounded-2">{hotel.rating}</span>
-                           <div className="small text-muted mt-1">Very Good</div>
+                           <span className="badge fs-5 p-2 rounded-2" style={{ backgroundColor: '#d46f1b'}}>{hotel.rating || "New"}</span>
                         </div>
                       </div>
-
                       <div className="mt-auto border-top pt-3 d-flex justify-content-between align-items-end">
-                         <div>
-                            <span className="badge bg-danger bg-opacity-10 text-danger border border-danger small mb-1">Deal of the Day</span>
-                            <div className="text-muted small">Per Night</div>
-                         </div>
-                         <div className="text-end">
+                         <div className="text-end ms-auto">
                             <h3 className="fw-bold mb-0">₹ {hotel.price}</h3>
-                            <div className="small text-muted mb-2">+ taxes & fees</div>
+                            <div className="small text-muted mb-2">+ taxes</div>
                             <button className="btn btn-outline-primary rounded-pill px-4 fw-bold">View Details</button>
                          </div>
                       </div>
