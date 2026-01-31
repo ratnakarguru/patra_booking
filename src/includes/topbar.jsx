@@ -4,11 +4,11 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 const Navbar = () => {
   // 1. Updated links to include 'path'
   const navItems = [
-    { label: "HOME", path: "" },
-    { label: "FLIGHT", path: "/" },
+    { label: "HOME", path: "/" },
+    { label: "FLIGHT", path: "/flight" },
+    { label: "HOTEL", path: "/hotels"},
     { label: "CABS", path: "/cabs", hasDropdown: true },
     { label: "CAR RENTALS", path: "/car-rentals", hasDropdown: true },
-    { label: "TAXI PACKAGE", path: "/taxi-packages" },
     { label: "HOLIDAYS", path: "/holidays", hasDropdown: true },
     { label: "FOREX", path: "/forex" },
     { label: "VISA", path: "/visa" },

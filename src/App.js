@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom"; // Fixed imports
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+
+import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "./App.css";
 
@@ -7,36 +14,33 @@ import "./App.css";
 import Loader from "./component/loader";
 import TopHeader from "./includes/header";
 import Navbar from "./includes/topbar";
-import HeroSection from "./pages/home";
+import Home from "./pages/home";
+import Flight from "./pages/flightsec";
 import SearchResults from "./pages/searchResults";
 import Offer from "./pages/offer";
 import Footer from "./includes/footer";
 import BookingDetails from "./pages/booking";
+import Hotels from "./pages/hotelsec";
+import HotelDetails from "./pages/hotelbooking";
 
-// 1. Create a child component to handle the Logic
+// Handles routing + loader logic
 function AppContent() {
   const location = useLocation();
-  
-  // Initialize loading: true ONLY if we land on Home ('/')
+
   const [loading, setLoading] = useState(location.pathname === "/");
 
   useEffect(() => {
-    // If we are on Home page, run the timer
     if (location.pathname === "/") {
-      // Optional: If you want the loader to show EVERY time you go back home, uncomment the line below:
-      // setLoading(true); 
-      
+      setLoading(true);
       const timer = setTimeout(() => {
         setLoading(false);
       }, 2000);
       return () => clearTimeout(timer);
     } else {
-      // If on any other page, ensure loading is off immediately
       setLoading(false);
     }
   }, [location.pathname]);
 
-  // Show Loader only if loading state is true
   if (loading) {
     return <Loader />;
   }
@@ -45,25 +49,38 @@ function AppContent() {
     <div className="app">
       <TopHeader />
       <Navbar />
+
       <Routes>
+        <Route path="/" element={<Home />} />
+
         <Route
-          path="/"
+          path="/flight"
           element={
             <>
-              <HeroSection />
+              <Flight />
               <Offer />
             </>
           }
         />
         <Route path="/results" element={<SearchResults />} />
         <Route path="/booking" element={<BookingDetails />} />
+        <Route
+          path="/Hotels"
+          element={
+            <>
+              <Hotels />
+            </>
+          }
+        />
+        <Route path="/Hotel_details" element={<HotelDetails />} />
       </Routes>
+
       <Footer />
     </div>
   );
 }
 
-// 2. Main App Component wraps everything in Router
+// Main App
 function App() {
   return (
     <Router>
