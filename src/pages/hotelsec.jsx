@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { City } from 'country-state-city';
+import { motion, AnimatePresence } from 'framer-motion';
+const getDayLabel = (date) => date ? date.toLocaleDateString('en-US', { weekday: 'short' }) : '--';
+const formatDate = (date) => date ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Select Date';
 
 const Hotels = () => {
   const navigate = useNavigate();
@@ -10,7 +13,6 @@ const Hotels = () => {
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Dates
   const [checkInDate, setCheckInDate] = useState(new Date());
   const [checkOutDate, setCheckOutDate] = useState(() => {
     const d = new Date();
@@ -18,11 +20,8 @@ const Hotels = () => {
     return d;
   });
   
-  // Guests & Price
   const [guests, setGuests] = useState({ rooms: 1, adults: 2, children: 0 });
   const [priceRange, setPriceRange] = useState({ min: 1000, max: 20000 });
-
-  // UI Control
   const [activeDropdown, setActiveDropdown] = useState(null);
   const wrapperRef = useRef(null);
 
@@ -33,10 +32,8 @@ const Hotels = () => {
     });
   };
 
-  const getDayLabel = (date) => date ? date.toLocaleDateString('en-US', { weekday: 'short' }) : '--';
-  const formatDate = (date) => date ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Select Date';
+ 
 
-  // Guest Logic
   const updateGuest = (type, delta) => {
     setGuests(prev => {
       const newVal = prev[type] + delta;
@@ -65,7 +62,7 @@ const Hotels = () => {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [wrapperRef]);
+  }, []);
 
   useEffect(() => {
     const timerId = setTimeout(() => {
@@ -83,7 +80,6 @@ const Hotels = () => {
 
   return (
     <div className="font-sans" ref={wrapperRef}>
-      {/* BACKGROUND HERO */}
       <section className="position-relative d-flex align-items-center justify-content-center px-3" style={{ minHeight: '85vh', paddingBottom: '10vh' }}>
         <div className="position-absolute top-0 start-0 w-100 h-100" 
              style={{
@@ -94,13 +90,24 @@ const Hotels = () => {
         <div className="position-absolute top-0 start-0 w-100 h-100 bg-black opacity-50"></div>
 
         <div className="container position-relative z-1">
-            <div className="text-center mb-5">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-center mb-5"
+            >
               <h1 className="text-white fw-bold display-4 mb-2">Escape to Paradise</h1>
               <p className="text-white-50 fs-5">Find amazing deals on hotels, resorts, and private villas.</p>
-            </div>
+            </motion.div>
 
             {/* SEARCH BAR */}
-            <div className="bg-white rounded-4 shadow-lg p-2 mx-auto" style={{maxWidth: '1200px'}}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white rounded-4 shadow-lg p-2 mx-auto" 
+              style={{maxWidth: '1200px'}}
+            >
               <div className="row g-0 align-items-center">
                 
                 {/* LOCATION */}
@@ -108,21 +115,28 @@ const Hotels = () => {
                    <div className="p-3 cursor-pointer hover-bg-light rounded-3" onClick={() => setActiveDropdown('location')}>
                       <label className="text-uppercase fw-bold text-muted small mb-1">Location</label>
                       <input type="text" className="form-control border-0 p-0 fs-6 fw-bold shadow-none bg-transparent text-truncate" 
-                        placeholder="Where are you going?" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
+                        placeholder="Where are you staying?" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
                       <div className="small text-muted text-truncate">{results.length > 0 ? 'Select a city' : 'Search destinations'}</div>
                    </div>
-                   {activeDropdown === 'location' && (
-                     <SmartDropdown width="100%">
-                         {results.length === 0 && <div className="p-3 text-muted text-center small">Type at least 3 letters...</div>}
-                         <div style={{maxHeight: '300px', overflowY:'auto'}}>
-                            {results.map((item, idx) => (
-                            <div key={idx} className="p-3 border-bottom hover-bg-light cursor-pointer d-flex align-items-center" onClick={(e) => { e.stopPropagation(); setQuery(item.name); setActiveDropdown(null); }}>
-                                <i className="fas fa-map-marker-alt text-muted me-3"></i>
-                                <div><div className="fw-bold text-dark">{item.name}</div><small className="text-muted">{item.subLabel}</small></div>
-                            </div>))}
-                         </div>
-                     </SmartDropdown>
-                   )}
+                   <AnimatePresence>
+                    {activeDropdown === 'location' && (
+                      <SmartDropdown width="100%">
+                          {results.length === 0 && <div className="p-3 text-muted text-center small">Type at least 3 letters...</div>}
+                          <div style={{maxHeight: '300px', overflowY:'auto'}}>
+                             {results.map((item, idx) => (
+                             <motion.div 
+                                whileHover={{ x: 5, backgroundColor: '#f8f9fa' }}
+                                key={idx} 
+                                className="p-3 border-bottom cursor-pointer d-flex align-items-center" 
+                                onClick={(e) => { e.stopPropagation(); setQuery(item.name); setActiveDropdown(null); }}
+                              >
+                                 <i className="fas fa-map-marker-alt text-muted me-3"></i>
+                                 <div><div className="fw-bold text-dark">{item.name}</div><small className="text-muted">{item.subLabel}</small></div>
+                             </motion.div>))}
+                          </div>
+                      </SmartDropdown>
+                    )}
+                   </AnimatePresence>
                 </div>
 
                 {/* DATES */}
@@ -138,12 +152,14 @@ const Hotels = () => {
                       <div className={`fs-6 fw-bold ${!checkOutDate ? 'text-muted' : ''}`}>{formatDate(checkOutDate)}</div>
                       <div className="small text-muted">{getDayLabel(checkOutDate)}</div>
                    </div>
-                   {activeDropdown === 'dateRange' && (
-                      <SmartDropdown width="750px" padding="0">
-                          <DualMonthCalendar checkIn={checkInDate} checkOut={checkOutDate} 
-                            onChange={(start, end) => { setCheckInDate(start); setCheckOutDate(end); if (start && end) setActiveDropdown(null); }} />
-                      </SmartDropdown>
-                   )}
+                   <AnimatePresence>
+                    {activeDropdown === 'dateRange' && (
+                        <SmartDropdown width="750px" padding="0">
+                            <DualMonthCalendar checkIn={checkInDate} checkOut={checkOutDate} 
+                              onChange={(start, end) => { setCheckInDate(start); setCheckOutDate(end); if (start && end) setActiveDropdown(null); }} />
+                        </SmartDropdown>
+                    )}
+                   </AnimatePresence>
                 </div>
 
                 {/* GUESTS */}
@@ -153,44 +169,82 @@ const Hotels = () => {
                       <div className="fs-6 fw-bold">{guests.adults + guests.children} Guests</div>
                       <div className="small text-muted">{guests.rooms} Room</div>
                    </div>
-                   {activeDropdown === 'guests' && (
-                     <SmartDropdown width="280px">
-                         {['rooms', 'adults', 'children'].map((type) => (
-                             <div key={type} className="d-flex justify-content-between align-items-center mb-3">
-                                 <div className="text-capitalize fw-bold">{type}</div>
-                                 <div className="d-flex align-items-center gap-2">
-                                     <button className="btn btn-sm btn-outline-secondary rounded-circle" onClick={() => updateGuest(type, -1)} disabled={guests[type] <= (type==='children'?0:1)}>-</button>
-                                     <span className="fw-bold" style={{width:'20px', textAlign:'center'}}>{guests[type]}</span>
-                                     <button className="btn btn-sm btn-outline-secondary rounded-circle" onClick={() => updateGuest(type, 1)}>+</button>
-                                 </div>
-                             </div>
-                         ))}
-                         <button className="btn btn-primary w-100 rounded-pill mt-2" onClick={() => setActiveDropdown(null)}>Done</button>
-                     </SmartDropdown>
-                   )}
+                   <AnimatePresence>
+                    {activeDropdown === 'guests' && (
+                      <SmartDropdown width="280px">
+                          {['rooms', 'adults', 'children'].map((type) => (
+                              <div key={type} className="d-flex justify-content-between align-items-center mb-3">
+                                  <div className="text-capitalize fw-bold">{type}</div>
+                                  <div className="d-flex align-items-center gap-2">
+                                      <button className="btn btn-sm btn-outline-secondary rounded-circle" onClick={() => updateGuest(type, -1)} disabled={guests[type] <= (type==='children'?0:1)}>-</button>
+                                      <span className="fw-bold" style={{width:'20px', textAlign:'center'}}>{guests[type]}</span>
+                                      <button className="btn btn-sm btn-outline-secondary rounded-circle" onClick={() => updateGuest(type, 1)}>+</button>
+                                  </div>
+                              </div>
+                          ))}
+                          <button className="btn btn-primary w-100 rounded-pill mt-2" onClick={() => setActiveDropdown(null)}>Done</button>
+                      </SmartDropdown>
+                    )}
+                   </AnimatePresence>
                 </div>
 
                 {/* PRICE */}
                 <div className="col-lg-2 col-md-6 position-relative mb-2 mb-lg-0 d-flex align-items-center justify-content-between px-3">
                    <div className="cursor-pointer hover-bg-light rounded-3 p-2 flex-grow-1" onClick={() => setActiveDropdown('price')}>
                       <label className="text-uppercase fw-bold text-muted small mb-1 d-block">Price</label>
-                      <div className="fs-6 fw-bold text-truncate">₹{priceRange.max/1000}k</div>
+                      <div className="fs-6 fw-bold text-truncate">
+                        ₹{priceRange.min/1000}k - ₹{priceRange.max/1000}k
+                      </div>
                    </div>
-                   <button className="btn btn-primary rounded-pill shadow-lg py-3 px-4 fw-bold text-uppercase ms-2" onClick={handleSearch}><i className="fas fa-search"></i></button>
-                   {activeDropdown === 'price' && (
-                     <SmartDropdown width="300px">
-                         <h6 className="fw-bold mb-3">Price per Night</h6>
-                         <div className="mb-3">
-                             <label className="small text-muted">Max Price</label>
-                             <input type="range" className="form-range" min="1000" max="50000" step="1000" value={priceRange.max} onChange={(e) => setPriceRange({...priceRange, max: parseInt(e.target.value)})} />
-                             <div className="text-end fw-bold">₹ {priceRange.max}</div>
-                         </div>
-                         <button className="btn btn-primary w-100 rounded-pill mt-3" onClick={() => setActiveDropdown(null)}>Apply</button>
-                     </SmartDropdown>
-                   )}
+                   
+                   <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="btn btn-warning rounded-pill shadow-lg py-3 px-4 fw-bold text-uppercase ms-2" 
+                    onClick={handleSearch}
+                   >
+                    <i className="fas fa-search"></i>
+                   </motion.button>
+
+                   <AnimatePresence>
+                    {activeDropdown === 'price' && (
+                      <SmartDropdown width="300px">
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                             <h6 className="fw-bold m-0">Price per Night</h6>
+                             <button className="btn btn-link text-decoration-none p-0 small" onClick={() => setPriceRange({min: 1000, max: 20000})}>Reset</button>
+                          </div>
+                          
+                          <div className="mb-4">
+                              <label className="small text-muted d-flex justify-content-between mb-2">
+                                <span>Up to</span>
+                                <span className="fw-bold text-primary">₹ {priceRange.max.toLocaleString()}</span>
+                              </label>
+                              
+                              <input 
+                                type="range" 
+                                className="form-range" 
+                                min="1000" 
+                                max="50000" 
+                                step="1000" 
+                                value={priceRange.max} 
+                                // FIX: Stop propagation to prevent dropdown closing while dragging
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onChange={(e) => setPriceRange(prev => ({ ...prev, max: parseInt(e.target.value) }))} 
+                              />
+                              
+                              <div className="d-flex justify-content-between small text-muted mt-2">
+                                <span>₹1k</span>
+                                <span>₹50k</span>
+                              </div>
+                          </div>
+                          <button className="btn btn-primary w-100 rounded-pill" onClick={() => setActiveDropdown(null)}>Apply</button>
+                      </SmartDropdown>
+                    )}
+                   </AnimatePresence>
                 </div>
               </div>
-            </div>
+            </motion.div>
         </div>
       </section>
 
@@ -214,93 +268,67 @@ const Hotels = () => {
   );
 };
 
-// --- SMART DROPDOWN ---
+// --- SMART DROPDOWN WITH MOTION ---
 const SmartDropdown = ({ children, width = '300px', padding = '1rem' }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const ref = useRef(null);
+  
   useLayoutEffect(() => {
     if (ref.current) {
       const rect = ref.current.getBoundingClientRect();
       if (rect.bottom > window.innerHeight) setIsFlipped(true);
     }
   }, []);
+
   return (
-    <div ref={ref} className="position-absolute bg-white rounded-4 shadow-lg start-50 translate-middle-x"
-      style={{ zIndex: 1050, width: width, padding: padding, [isFlipped ? 'bottom' : 'top']: '110%', marginTop: isFlipped ? 0 : '10px', marginBottom: isFlipped ? '10px' : 0 }}
-      onClick={(e) => e.stopPropagation()}>
+    <motion.div 
+      ref={ref}
+      initial={{ opacity: 0, y: isFlipped ? 10 : -10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className="position-absolute bg-white rounded-4 shadow-lg start-50 translate-middle-x"
+      style={{ 
+        zIndex: 1050, 
+        width: width, 
+        padding: padding, 
+        [isFlipped ? 'bottom' : 'top']: '110%', 
+        marginTop: isFlipped ? 0 : '10px', 
+        marginBottom: isFlipped ? '10px' : 0,
+        transformOrigin: isFlipped ? 'bottom' : 'top'
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
       {children}
-    </div>
+    </motion.div>
   );
 };
 
-// --- DUAL CALENDAR WITH HOLIDAY FOOTER ---
+// --- DUAL CALENDAR ---
 const DualMonthCalendar = ({ checkIn, checkOut, onChange }) => {
     const [viewDate, setViewDate] = useState(new Date()); 
     const [visibleHolidays, setVisibleHolidays] = useState([]);
 
-    // EXTENSIVE HOLIDAY LIST (Format: 'YYYY-M-D')
     const HOLIDAYS = {
+        '2026-1-1': 'New Year', '2026-1-14': 'Makar Sankranti', '2026-1-26': 'Republic Day',
+        '2026-2-15': 'Maha Shivaratri', '2026-3-4': 'Holi', '2026-3-20': 'Eid-ul-Fitr',
+        '2026-3-27': 'Ram Navami', '2026-4-3': 'Good Friday', '2026-4-14': 'Ambedkar Jayanti',
+        '2026-8-15': 'Independence Day', '2026-9-14': 'Ganesh Chaturthi', '2026-10-2': 'Gandhi Jayanti',
+        '2026-10-20': 'Dussehra', '2026-11-8': 'Diwali', '2026-12-25': 'Christmas'
+    };
 
-    // --- 2026 ---
-    '2026-1-1': 'New Year',
-    '2026-1-14': 'Makar Sankranti',
-    '2026-1-26': 'Republic Day',
-    '2026-2-15': 'Maha Shivaratri',
-    '2026-3-4': 'Holi',
-    '2026-3-20': 'Eid-ul-Fitr',
-    '2026-3-27': 'Ram Navami',
-    '2026-4-3': 'Good Friday',
-    '2026-4-14': 'Ambedkar Jayanti',
-    '2026-8-15': 'Independence Day',
-    '2026-9-14': 'Ganesh Chaturthi',
-    '2026-10-2': 'Gandhi Jayanti',
-    '2026-10-20': 'Dussehra',
-    '2026-11-8': 'Diwali',
-    '2026-12-25': 'Christmas',
-
-    // --- 2027 ---
-    '2027-1-1': 'New Year',
-    '2027-1-14': 'Makar Sankranti',
-    '2027-1-26': 'Republic Day',
-    '2027-3-7': 'Maha Shivaratri',
-    '2027-3-22': 'Holi',
-    '2027-3-26': 'Good Friday',
-    '2027-4-14': 'Ambedkar Jayanti',
-    '2027-8-15': 'Independence Day',
-    '2027-9-4': 'Ganesh Chaturthi',
-    '2027-10-2': 'Gandhi Jayanti',
-    '2027-10-9': 'Dussehra',
-    '2027-10-29': 'Diwali',
-    '2027-12-25': 'Christmas',
-
-    // --- 2028 ---
-    '2028-1-1': 'New Year',
-    '2028-1-14': 'Makar Sankranti',
-    '2028-1-26': 'Republic Day',
-    '2028-2-24': 'Maha Shivaratri',
-    '2028-3-11': 'Holi',
-    '2028-4-4': 'Ram Navami',
-    '2028-4-14': 'Good Friday', // Also Ambedkar Jayanti
-    '2028-8-15': 'Independence Day',
-    '2028-8-23': 'Ganesh Chaturthi',
-    '2028-10-2': 'Gandhi Jayanti',
-    '2028-10-17': 'Diwali',
-    '2028-12-25': 'Christmas'
-};
-    // Update visible holidays list when view changes
     useEffect(() => {
         const list = [];
         const checkMonth = (date) => {
             const y = date.getFullYear();
             const m = date.getMonth();
-            // Check all days in this month
             for(let i=1; i<=31; i++) {
                 const key = `${y}-${m+1}-${i}`;
                 if(HOLIDAYS[key]) list.push({ date: new Date(y, m, i), name: HOLIDAYS[key] });
             }
         };
-        checkMonth(viewDate); // Left Month
-        checkMonth(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)); // Right Month
+        checkMonth(viewDate);
+        checkMonth(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
         setVisibleHolidays(list);
     }, [viewDate]);
 
@@ -323,7 +351,6 @@ const DualMonthCalendar = ({ checkIn, checkOut, onChange }) => {
         for (let d = 1; d <= daysInMonth; d++) {
             const dateObj = new Date(year, month, d);
             const dateStr = `${year}-${month+1}-${d}`; 
-            
             const isCheckIn = checkIn && dateObj.toDateString() === checkIn.toDateString();
             const isCheckOut = checkOut && dateObj.toDateString() === checkOut.toDateString();
             const isInRange = checkIn && checkOut && dateObj > checkIn && dateObj < checkOut;
@@ -334,15 +361,19 @@ const DualMonthCalendar = ({ checkIn, checkOut, onChange }) => {
             else if (isCheckOut) classes += "range-end ";
             else if (isInRange) classes += "in-range ";
             else if (isHoliday) classes += "holiday-bg ";
-
-            // Handle Single Day Range (Circle)
             if (isCheckIn && !checkOut) classes = classes.replace("range-start", "range-both ");
 
             days.push(
-                <button key={d} className={classes} onClick={() => handleDayClick(dateObj)} title={isHoliday || ''}>
+                <motion.button 
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    key={d} 
+                    className={classes} 
+                    onClick={() => handleDayClick(dateObj)}
+                >
                     {d}
                     {isHoliday && !isCheckIn && !isCheckOut && !isInRange && <span className="holiday-badge text-warning">•</span>}
-                </button>
+                </motion.button>
             );
         }
         return days;
@@ -350,20 +381,18 @@ const DualMonthCalendar = ({ checkIn, checkOut, onChange }) => {
 
     return (
         <div className="p-3">
-            {/* Header Dates */}
             <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                 <div className="d-flex gap-4">
                     <div className={checkIn ? "text-primary fw-bold" : "text-muted"}>
-                        {checkIn ? checkIn.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'2-digit'}) : 'Select Date'}
+                        {checkIn ? formatDate(checkIn) : 'Select Date'}
                     </div>
                     <span>-</span>
                     <div className={checkOut ? "text-primary fw-bold" : "text-muted"}>
-                        {checkOut ? checkOut.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'2-digit'}) : 'Select Date'}
+                        {checkOut ? formatDate(checkOut) : 'Select Date'}
                     </div>
                 </div>
             </div>
 
-            {/* Calendars */}
             <div className="d-flex gap-4">
                 <div style={{width: '320px'}}>
                      <div className="d-flex justify-content-between align-items-center mb-2">
@@ -385,21 +414,24 @@ const DualMonthCalendar = ({ checkIn, checkOut, onChange }) => {
                 </div>
             </div>
 
-            {/* DYNAMIC HOLIDAY FOOTER LIST */}
             <div className="mt-3 pt-2 border-top">
-                 {visibleHolidays.length > 0 ? (
-                     <div className="d-flex flex-wrap gap-3">
-                         {visibleHolidays.map((h, i) => (
-                             <div key={i} className="small text-muted d-flex align-items-center">
-                                 <span className="text-warning me-1 fs-5" style={{lineHeight: 0}}>•</span>
-                                 <span className="fw-bold text-dark me-1">{h.date.getDate()} {h.date.toLocaleDateString('en-US',{month:'short'})}</span> 
-                                 {h.name}
-                             </div>
-                         ))}
-                     </div>
-                 ) : (
-                     <div className="text-muted small text-center">No holidays in these months</div>
-                 )}
+                 <AnimatePresence>
+                    {visibleHolidays.length > 0 && (
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="d-flex flex-wrap gap-3"
+                        >
+                            {visibleHolidays.map((h, i) => (
+                                <div key={i} className="small text-muted d-flex align-items-center">
+                                    <span className="text-warning me-1 fs-5" style={{lineHeight: 0}}>•</span>
+                                    <span className="fw-bold text-dark me-1">{h.date.getDate()} {h.date.toLocaleDateString('en-US',{month:'short'})}</span> 
+                                    {h.name}
+                                </div>
+                            ))}
+                        </motion.div>
+                    )}
+                 </AnimatePresence>
             </div>
         </div>
     );

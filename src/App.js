@@ -22,6 +22,8 @@ import Footer from "./includes/footer";
 import BookingDetails from "./pages/booking";
 import Hotels from "./pages/hotelsec";
 import HotelDetails from "./pages/hotelbooking";
+import Hotel_Booking from "./pages/hotelbooking2";
+
 
 // Handles routing + loader logic
 function AppContent() {
@@ -74,6 +76,7 @@ function AppContent() {
           }
         />
         <Route path="/Hotel_details" element={<HotelDetails />} />
+        <Route path="/Hotel_Booking" element={<Hotel_Booking />} />
       </Routes>
 
       <Footer />
