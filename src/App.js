@@ -23,6 +23,7 @@ import BookingDetails from "./pages/booking";
 import Hotels from "./pages/hotelsec";
 import HotelDetails from "./pages/hotelbooking";
 import Hotel_Booking from "./pages/hotelbooking2";
+import Hotel_Booking2 from "./pages/hotelbooking3";
 
 
 // Handles routing + loader logic
@@ -36,7 +37,7 @@ function AppContent() {
       setLoading(true);
       const timer = setTimeout(() => {
         setLoading(false);
-      }, 2000);
+      }, 3000);
       return () => clearTimeout(timer);
     } else {
       setLoading(false);
@@ -77,6 +78,7 @@ function AppContent() {
         />
         <Route path="/Hotel_details" element={<HotelDetails />} />
         <Route path="/Hotel_Booking" element={<Hotel_Booking />} />
+        <Route path="/Hotel_Booking2" element={<Hotel_Booking2 />} />
       </Routes>
 
       <Footer />

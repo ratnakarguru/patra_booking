@@ -424,9 +424,18 @@ const SearchResults = () => {
   }, [searchParams, depDate, retDate]);
 
   const getAirlineLogo = (name) => {
-    const logos = { IndiGo: "https://www.logo.wine/a/logo/IndiGo/IndiGo-Logo.wine.svg", "Air India": "https://www.logo.wine/a/logo/Air_India/Air_India-Logo.wine.svg", Vistara: "https://www.logo.wine/a/logo/Vistara/Vistara-Logo.wine.svg", SpiceJet: "https://1000logos.net/wp-content/uploads/2021/07/SpiceJet-Logo.png", "Akasa Air": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Akasa_Air_logo.svg/960px-Akasa_Air_logo.svg.png?20211225210806" };
-    return logos[name] || null;
+  const logos = {
+    IndiGo: "https://www.logo.wine/a/logo/IndiGo/IndiGo-Logo.wine.svg",
+    "Air India": "https://www.logo.wine/a/logo/Air_India/Air_India-Logo.wine.svg",
+    Vistara: "https://www.logo.wine/a/logo/Vistara/Vistara-Logo.wine.svg",
+    SpiceJet: "https://1000logos.net/wp-content/uploads/2021/07/SpiceJet-Logo.png",
+    "Akasa Air": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Akasa_Air_logo.svg/960px-Akasa_Air_logo.svg.png",
+    "AIX Connect": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/AIX_Connect_logo.svg/512px-AIX_Connect_logo.svg.png"
   };
+
+  return logos[name] || "https://cdn-icons-png.flaticon.com/512/3125/3125713.png"; // ✈️ default
+};
+
 
   // --- FILTERING & SORTING LOGIC ---
   const checkTimeMatch = (timeStr, selectedTimes) => {

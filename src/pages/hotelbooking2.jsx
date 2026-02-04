@@ -8,7 +8,7 @@ const HotelDetails = () => {
   // 1. Retrieve Data
   const baseHotelData = location.state?.hotel;
 
-  // 2. Enhanced Mock Data
+  // 2. State
   const [hotelData, setHotelData] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -19,7 +19,7 @@ const HotelDetails = () => {
       return;
     }
 
-    // Enhance the basic data with mock details for the demo
+    // Enhanced Mock Data
     const enhancedData = {
       ...baseHotelData,
       rooms: [
@@ -50,7 +50,7 @@ const HotelDetails = () => {
     };
 
     setHotelData(enhancedData);
-    setSelectedRoom(enhancedData.rooms[0]); // Default to first room
+    setSelectedRoom(enhancedData.rooms[0]); 
   }, [baseHotelData, navigate]);
 
   if (!hotelData) return null;
@@ -65,7 +65,42 @@ const HotelDetails = () => {
   };
 
   const calculateTax = (price) => Math.floor(price * 0.18);
-  const totalAmount = selectedRoom ? selectedRoom.price + calculateTax(selectedRoom.price) : 0;
+  const taxAmount = selectedRoom ? calculateTax(selectedRoom.price) : 0;
+  const totalAmount = selectedRoom ? selectedRoom.price + taxAmount : 0;
+
+  // --- NEW: HANDLE BOOKING NAVIGATION ---
+  const handleBooking = () => {
+    if (!selectedRoom) return;
+
+    // Helper to get formatted dates (Tomorrow & Day After)
+    // In a real app, you would use a DatePicker component
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayAfter = new Date(today);
+    dayAfter.setDate(dayAfter.getDate() + 2);
+
+    const formatDate = (date) => date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    const bookingPayload = {
+      hotel: {
+        name: hotelData.name,
+        image: hotelData.image,
+        area: hotelData.area,
+        city: hotelData.city
+      },
+      room: selectedRoom,
+      dates: {
+        checkIn: formatDate(tomorrow),
+        checkOut: formatDate(dayAfter)
+      },
+      tax: taxAmount,
+      totalPrice: totalAmount
+    };
+
+    // Navigate to the booking page with the data
+    navigate("/Hotel_Booking2", { state: bookingPayload });
+  };
 
   return (
     <div className="bg-light min-vh-100 pb-5">
@@ -123,6 +158,7 @@ const HotelDetails = () => {
                     return (
                         <button 
                             key={id}
+                            id={`nav-${id}`}
                             className={`nav-link fw-bold border-0 bg-transparent ${activeTab === id ? 'text-primary border-bottom border-primary border-3 rounded-0' : 'text-muted'}`}
                             onClick={() => handleScroll(id)}
                         >
@@ -144,7 +180,7 @@ const HotelDetails = () => {
                 <section id="overview" className="card border-0 shadow-sm p-4 mb-4 scroll-mt">
                     <h5 className="fw-bold mb-3">Overview</h5>
                     <p className="text-muted mb-0">
-                        Experience world-class service at {hotelData.name}. Located in the heart of {hotelData.city}, this property offers a perfect blend of luxury and comfort. Whether you are traveling for business or leisure, our top-notch amenities including a swimming pool, spa, and fine dining restaurants ensure a memorable stay.
+                        Experience world-class service at {hotelData.name}. Located in the heart of {hotelData.city}, this property offers a perfect blend of luxury and comfort.
                     </p>
                 </section>
 
@@ -208,24 +244,17 @@ const HotelDetails = () => {
                                 <span className="fw-bold">{review.user}</span>
                                 <span className="text-muted small">{review.date}</span>
                             </div>
-                            <div className="text-warning small mb-1">
-                                {[...Array(5)].map((_, starI) => (
-                                    <i key={starI} className={`fas fa-star ${starI < Math.floor(review.rating/2) ? '' : 'text-muted opacity-25'}`}></i>
-                                ))}
-                            </div>
                             <p className="text-muted mb-0 fst-italic">"{review.comment}"</p>
                         </div>
                     ))}
                 </section>
 
-                {/* 5. LOCATION (UPDATED WITH MAP) */}
+                {/* 5. LOCATION */}
                 <section id="location" className="card border-0 shadow-sm p-4 mb-4 scroll-mt">
                     <h5 className="fw-bold mb-3">Location</h5>
                     <p className="text-muted mb-3"><i className="fas fa-map-pin me-2 text-danger"></i> {hotelData.area}, {hotelData.city}</p>
-                    
-                    {/* Embedded Map */}
-                    <div className="rounded overflow-hidden shadow-sm" style={{height: '350px'}}>
-                        <iframe 
+                    <div className="rounded overflow-hidden shadow-sm bg-light d-flex align-items-center justify-content-center" style={{height: '350px'}}>
+                         <iframe 
                             src={`https://maps.google.com/maps?q=${encodeURIComponent(hotelData.area + ', ' + hotelData.city)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                             width="100%" 
                             height="100%" 
@@ -253,10 +282,6 @@ const HotelDetails = () => {
                             <h6 className="fw-bold small text-muted">Cancellation</h6>
                             <p className="mb-0 text-success">{hotelData.policies.cancellation}</p>
                         </div>
-                        <div className="col-md-12">
-                            <h6 className="fw-bold small text-muted">Pets</h6>
-                            <p className="mb-0">{hotelData.policies.pets}</p>
-                        </div>
                     </div>
                 </section>
             </div>
@@ -277,7 +302,7 @@ const HotelDetails = () => {
                         </div>
                         <div className="d-flex justify-content-between mb-3 small text-muted">
                             <span>Taxes & Fees (18%)</span>
-                            <span>₹ {calculateTax(selectedRoom?.price).toLocaleString()}</span>
+                            <span>₹ {taxAmount.toLocaleString()}</span>
                         </div>
                         
                         <hr className="border-dashed" />
@@ -287,7 +312,12 @@ const HotelDetails = () => {
                             <span className="fw-bold h4 text-danger mb-0">₹ {totalAmount.toLocaleString()}</span>
                         </div>
 
-                        <button className="btn btn-warning w-100 py-3 fw-bold text-white shadow-sm" style={{backgroundColor: '#d46f1b', border: 'none'}}>
+                        {/* --- THE UPDATED BUTTON --- */}
+                        <button 
+                            className="btn btn-warning w-100 py-3 fw-bold text-white shadow-sm" 
+                            style={{backgroundColor: '#d46f1b', border: 'none'}}
+                            onClick={handleBooking}
+                        >
                             Proceed to Book
                         </button>
                         
@@ -301,11 +331,10 @@ const HotelDetails = () => {
       </div>
       
       <style>{`
-        .scroll-mt { scroll-margin-top: 140px; } /* Offset for sticky header */
+        .scroll-mt { scroll-margin-top: 140px; }
         .cursor-pointer { cursor: pointer; }
         .x-small { font-size: 0.75rem; }
         .border-dashed { border-style: dashed !important; opacity: 0.3; }
-        /* Custom scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { City } from 'country-state-city';
 import { motion, AnimatePresence } from 'framer-motion';
+
 const getDayLabel = (date) => date ? date.toLocaleDateString('en-US', { weekday: 'short' }) : '--';
 const formatDate = (date) => date ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Select Date';
 
@@ -21,18 +22,19 @@ const Hotels = () => {
   });
   
   const [guests, setGuests] = useState({ rooms: 1, adults: 2, children: 0 });
-  const [priceRange, setPriceRange] = useState({ min: 1000, max: 20000 });
+  
+  // Removed Price State
+
   const [activeDropdown, setActiveDropdown] = useState(null);
   const wrapperRef = useRef(null);
 
   // --- HELPERS ---
   const handleSearch = () => {
+    // Removed priceRange from navigation state
     navigate('/Hotel_details', { 
-      state: { city: query, checkIn: checkInDate, checkOut: checkOutDate, guests, priceRange } 
+      state: { city: query, checkIn: checkInDate, checkOut: checkOutDate, guests } 
     });
   };
-
- 
 
   const updateGuest = (type, delta) => {
     setGuests(prev => {
@@ -110,8 +112,8 @@ const Hotels = () => {
             >
               <div className="row g-0 align-items-center">
                 
-                {/* LOCATION */}
-                <div className="col-lg-3 col-md-12 position-relative border-end-lg mb-2 mb-lg-0">
+                {/* LOCATION - Expanded Col Size */}
+                <div className="col-lg-4 col-md-12 position-relative border-end-lg mb-2 mb-lg-0">
                    <div className="p-3 cursor-pointer hover-bg-light rounded-3" onClick={() => setActiveDropdown('location')}>
                       <label className="text-uppercase fw-bold text-muted small mb-1">Location</label>
                       <input type="text" className="form-control border-0 p-0 fs-6 fw-bold shadow-none bg-transparent text-truncate" 
@@ -139,8 +141,8 @@ const Hotels = () => {
                    </AnimatePresence>
                 </div>
 
-                {/* DATES */}
-                <div className="col-lg-4 col-md-12 position-relative border-end-lg mb-2 mb-lg-0 d-flex">
+                {/* DATES - Expanded Col Size */}
+                <div className="col-lg-5 col-md-12 position-relative border-end-lg mb-2 mb-lg-0 d-flex">
                    <div className="flex-fill p-3 cursor-pointer hover-bg-light rounded-3" onClick={() => setActiveDropdown('dateRange')}>
                       <label className="text-uppercase fw-bold text-muted small mb-1">Check-In</label>
                       <div className={`fs-6 fw-bold ${!checkInDate ? 'text-muted' : ''}`}>{formatDate(checkInDate)}</div>
@@ -162,13 +164,23 @@ const Hotels = () => {
                    </AnimatePresence>
                 </div>
 
-                {/* GUESTS */}
-                <div className="col-lg-3 col-md-6 position-relative border-end-lg mb-2 mb-lg-0">
-                   <div className="p-3 cursor-pointer hover-bg-light rounded-3" onClick={() => setActiveDropdown('guests')}>
+                {/* GUESTS & SEARCH BUTTON */}
+                <div className="col-lg-3 col-md-12 position-relative mb-2 mb-lg-0 d-flex align-items-center">
+                   <div className="flex-grow-1 p-3 cursor-pointer hover-bg-light rounded-3" onClick={() => setActiveDropdown('guests')}>
                       <label className="text-uppercase fw-bold text-muted small mb-1">Guests</label>
                       <div className="fs-6 fw-bold">{guests.adults + guests.children} Guests</div>
                       <div className="small text-muted">{guests.rooms} Room</div>
                    </div>
+                   
+                   <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="btn btn-warning rounded-pill shadow-lg py-3 px-4 fw-bold text-uppercase ms-2" 
+                    onClick={handleSearch}
+                   >
+                    <i className="fas fa-search"></i>
+                   </motion.button>
+
                    <AnimatePresence>
                     {activeDropdown === 'guests' && (
                       <SmartDropdown width="280px">
@@ -188,61 +200,6 @@ const Hotels = () => {
                    </AnimatePresence>
                 </div>
 
-                {/* PRICE */}
-                <div className="col-lg-2 col-md-6 position-relative mb-2 mb-lg-0 d-flex align-items-center justify-content-between px-3">
-                   <div className="cursor-pointer hover-bg-light rounded-3 p-2 flex-grow-1" onClick={() => setActiveDropdown('price')}>
-                      <label className="text-uppercase fw-bold text-muted small mb-1 d-block">Price</label>
-                      <div className="fs-6 fw-bold text-truncate">
-                        ₹{priceRange.min/1000}k - ₹{priceRange.max/1000}k
-                      </div>
-                   </div>
-                   
-                   <motion.button 
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="btn btn-warning rounded-pill shadow-lg py-3 px-4 fw-bold text-uppercase ms-2" 
-                    onClick={handleSearch}
-                   >
-                    <i className="fas fa-search"></i>
-                   </motion.button>
-
-                   <AnimatePresence>
-                    {activeDropdown === 'price' && (
-                      <SmartDropdown width="300px">
-                          <div className="d-flex justify-content-between align-items-center mb-3">
-                             <h6 className="fw-bold m-0">Price per Night</h6>
-                             <button className="btn btn-link text-decoration-none p-0 small" onClick={() => setPriceRange({min: 1000, max: 20000})}>Reset</button>
-                          </div>
-                          
-                          <div className="mb-4">
-                              <label className="small text-muted d-flex justify-content-between mb-2">
-                                <span>Up to</span>
-                                <span className="fw-bold text-primary">₹ {priceRange.max.toLocaleString()}</span>
-                              </label>
-                              
-                              <input 
-                                type="range" 
-                                className="form-range" 
-                                min="1000" 
-                                max="50000" 
-                                step="1000" 
-                                value={priceRange.max} 
-                                // FIX: Stop propagation to prevent dropdown closing while dragging
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onTouchStart={(e) => e.stopPropagation()}
-                                onChange={(e) => setPriceRange(prev => ({ ...prev, max: parseInt(e.target.value) }))} 
-                              />
-                              
-                              <div className="d-flex justify-content-between small text-muted mt-2">
-                                <span>₹1k</span>
-                                <span>₹50k</span>
-                              </div>
-                          </div>
-                          <button className="btn btn-primary w-100 rounded-pill" onClick={() => setActiveDropdown(null)}>Apply</button>
-                      </SmartDropdown>
-                    )}
-                   </AnimatePresence>
-                </div>
               </div>
             </motion.div>
         </div>
@@ -395,22 +352,22 @@ const DualMonthCalendar = ({ checkIn, checkOut, onChange }) => {
 
             <div className="d-flex gap-4">
                 <div style={{width: '320px'}}>
-                     <div className="d-flex justify-content-between align-items-center mb-2">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
                         <button className="btn btn-sm btn-light rounded-circle" onClick={handlePrev}><i className="fas fa-chevron-left"></i></button>
                         <span className="fw-bold">{viewDate.toLocaleDateString('en-US', {month:'long', year:'numeric'})}</span>
                         <div></div>
-                     </div>
-                     <div className="d-grid text-center text-muted small fw-bold mb-2" style={{gridTemplateColumns: 'repeat(7, 1fr)'}}>{['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=><div key={d}>{d}</div>)}</div>
-                     <div className="d-grid" style={{gridTemplateColumns: 'repeat(7, 1fr)', rowGap: '5px'}}>{renderMonth(viewDate)}</div>
+                      </div>
+                      <div className="d-grid text-center text-muted small fw-bold mb-2" style={{gridTemplateColumns: 'repeat(7, 1fr)'}}>{['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=><div key={d}>{d}</div>)}</div>
+                      <div className="d-grid" style={{gridTemplateColumns: 'repeat(7, 1fr)', rowGap: '5px'}}>{renderMonth(viewDate)}</div>
                 </div>
                 <div style={{width: '320px'}} className="d-none d-md-block">
-                     <div className="d-flex justify-content-between align-items-center mb-2">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
                         <div></div>
                         <span className="fw-bold">{new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1).toLocaleDateString('en-US', {month:'long', year:'numeric'})}</span>
                         <button className="btn btn-sm btn-light rounded-circle" onClick={handleNext}><i className="fas fa-chevron-right"></i></button>
-                     </div>
-                     <div className="d-grid text-center text-muted small fw-bold mb-2" style={{gridTemplateColumns: 'repeat(7, 1fr)'}}>{['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=><div key={d}>{d}</div>)}</div>
-                     <div className="d-grid" style={{gridTemplateColumns: 'repeat(7, 1fr)', rowGap: '5px'}}>{renderMonth(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}</div>
+                      </div>
+                      <div className="d-grid text-center text-muted small fw-bold mb-2" style={{gridTemplateColumns: 'repeat(7, 1fr)'}}>{['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=><div key={d}>{d}</div>)}</div>
+                      <div className="d-grid" style={{gridTemplateColumns: 'repeat(7, 1fr)', rowGap: '5px'}}>{renderMonth(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}</div>
                 </div>
             </div>
 
