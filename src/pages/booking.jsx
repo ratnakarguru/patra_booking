@@ -30,10 +30,27 @@ const BookingDetails = () => {
   const baseFlightPrice = rawData?.totalPrice || segments.reduce((sum, seg) => sum + (seg.price || 0), 0);
 
   // --- 2. STATE ---
+  const TIMER_KEY = 'bookingExpiryTime';
+
+  const calculateTimeLeft = () => {
+    const savedExpiry = localStorage.getItem(TIMER_KEY);
+    const now = Date.now();
+
+    if (savedExpiry) {
+      const remaining = Math.floor((parseInt(savedExpiry) - now) / 1000);
+      return remaining > 0 ? remaining : 0;
+    } else {
+      const newExpiry = now + 900 * 1000; 
+      localStorage.setItem(TIMER_KEY, newExpiry.toString());
+      return 900;
+    }
+  };
+
+  // Initialize state with the calculation function
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft);
+  const [loading, setLoading] = useState(true);
   const [selectedSeats, setSelectedSeats] = useState({}); 
   const [activeLegIndex, setActiveLegIndex] = useState(0); 
-  const [timeLeft, setTimeLeft] = useState(900);
-  const [loading, setLoading] = useState(true);
   const [isInternational, setIsInternational] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -65,7 +82,19 @@ const BookingDetails = () => {
 
   // --- 4. EFFECTS ---
   useEffect(() => {
-    const timer = setInterval(() => setTimeLeft(prev => (prev > 0 ? prev - 1 : 0)), 1000);
+   const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          // TIME OUT LOGIC
+          localStorage.removeItem(TIMER_KEY); // Clear storage
+          alert("Session timed out! Redirecting to home.");
+          navigate('/'); // Redirect to home
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     const loadingTimer = setTimeout(() => setLoading(false), 800);
     return () => {
       clearInterval(timer);
@@ -104,7 +133,7 @@ const BookingDetails = () => {
     setLoading(true);
     setTimeout(() => {
         alert(`Booking Confirmed for ${formData.firstName} ${formData.lastName}!`);
-        navigate('/');
+        navigate('/flight');
     }, 1500);
   };
 

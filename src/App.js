@@ -49,7 +49,7 @@ function AppContent() {
   }
 
   return (
-    <div className="app">
+   <div className="app d-flex flex-column min-vh-100">
       <TopHeader />
       <Navbar />
 

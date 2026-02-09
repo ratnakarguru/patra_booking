@@ -265,7 +265,7 @@ const StandardFlightCard = ({ itinerary, getAirlineLogo, airportMap }) => {
                       <div className="flex-grow-1 p-2 mt-2">
                           <div className="row align-items-center">
                              <div className="col-md-3 d-flex align-items-center gap-2">
-                                <img src={getAirlineLogo(flight.airline)} alt="logo" style={{height:'24px'}} />
+                                <img src={getAirlineLogo(flight.airline)} alt="logo" style={{height:'50px'}} />
                                 <div>
                                     <div className="fw-bold small">{flight.airline}</div>
                                     <div className="text-muted" style={{fontSize:'0.65rem'}}>{flight.flightCode}</div>
@@ -426,7 +426,7 @@ const SearchResults = () => {
   const getAirlineLogo = (name) => {
   const logos = {
     IndiGo: "https://www.logo.wine/a/logo/IndiGo/IndiGo-Logo.wine.svg",
-    "Air India": "https://www.logo.wine/a/logo/Air_India/Air_India-Logo.wine.svg",
+    "Air India": "https://planesticker.com/cdn/shop/files/AirIndiaTaillogo.png?v=1739769083",
     Vistara: "https://www.logo.wine/a/logo/Vistara/Vistara-Logo.wine.svg",
     SpiceJet: "https://1000logos.net/wp-content/uploads/2021/07/SpiceJet-Logo.png",
     "Akasa Air": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Akasa_Air_logo.svg/960px-Akasa_Air_logo.svg.png",

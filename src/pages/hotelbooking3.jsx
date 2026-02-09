@@ -3,9 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { motion } from 'framer-motion';
 import { 
-  FaHotel, FaUser, FaCheckCircle, FaArrowRight, 
-  FaShieldAlt, FaClock, FaRupeeSign, FaTicketAlt, 
-  FaIdCard, FaUtensils, FaBed, FaCalendarAlt 
+  FaHotel, FaUser, FaCheckCircle, 
+  FaShieldAlt, FaClock, FaTicketAlt, 
+  FaBed
 } from 'react-icons/fa';
 
 const HotelBooking = () => {
@@ -17,7 +17,43 @@ const HotelBooking = () => {
   const { hotel, room, dates, tax, totalPrice } = bookingData;
 
   // --- 2. STATE ---
-  const [timeLeft, setTimeLeft] = useState(900); // 15 mins timer
+  const STORAGE_KEY = 'patraBookingSession'; // Changed key name for clarity
+
+  const calculateTimeLeft = () => {
+    // 1. Create a unique ID for this specific booking (Hotel Name + Room Name)
+    const currentBookingId = `${hotel?.id || hotel?.name}-${room?.id || room?.name}`;
+    
+    // 2. Get saved session
+    const savedSessionString = localStorage.getItem(STORAGE_KEY);
+    const now = Date.now();
+    const defaultTime = 900; // 15 minutes
+
+    if (savedSessionString) {
+      const savedSession = JSON.parse(savedSessionString);
+
+      // 3. CHECK: Is this the same hotel/room as stored?
+      if (savedSession.bookingId === currentBookingId) {
+        // SAME HOTEL: Continue timer
+        const remaining = Math.floor((savedSession.expiry - now) / 1000);
+        return remaining > 0 ? remaining : 0;
+      }
+    }
+
+    // 4. DIFFERENT HOTEL (or first load): Reset Timer
+    const newExpiry = now + defaultTime * 1000; 
+    
+    // Save new session with the Current Hotel ID
+    const newSessionData = {
+      expiry: newExpiry,
+      bookingId: currentBookingId
+    };
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newSessionData));
+    return defaultTime;
+  };
+
+  // Initialize state with the smart calculation
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft); 
   const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
@@ -41,8 +77,24 @@ const HotelBooking = () => {
     if (!hotel || !room) {
         // navigate('/'); // Uncomment to enforce redirect
     }
-    const timer = setInterval(() => setTimeLeft(prev => (prev > 0 ? prev - 1 : 0)), 1000);
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          // TIME OUT LOGIC
+          localStorage.removeItem(STORAGE_KEY); // Clear storage
+          alert("Session timed out! Redirecting to home.");
+          navigate('/'); // Redirect to home
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
     setTimeout(() => setLoading(false), 800);
+
+    // Cleanup interval on unmount
     return () => clearInterval(timer);
   }, [hotel, room, navigate]);
 
@@ -55,9 +107,12 @@ const HotelBooking = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
+    // Clear storage on successful booking so next booking starts fresh
+    localStorage.removeItem(STORAGE_KEY);
+    
     setTimeout(() => {
         alert(`Booking Confirmed for ${formData.firstName} at ${hotel?.name}!`);
-        navigate('/');
+        navigate('/hotels');
     }, 1500);
   };
 
@@ -104,7 +159,9 @@ const HotelBooking = () => {
           </div>
           <div className="d-flex align-items-center bg-light px-3 py-2 rounded-pill">
             <FaClock className="text-orange me-2"/>
-            <span className="small fw-bold font-monospace">{formatTime(timeLeft)}</span>
+            <span className={`small fw-bold font-monospace ${timeLeft < 180 ? 'text-danger' : ''}`}>
+                {formatTime(timeLeft)}
+            </span>
           </div>
         </div>
       </motion.nav>
