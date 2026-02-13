@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
 import 'bootstrap/dist/css/bootstrap.min.css';
 import {
   FaMapMarkerAlt,
@@ -55,40 +56,31 @@ const SuperOffers = () => {
   ];
 
   // ADDED: Taxi specific data
-  const taxiDeals = [
-    {
-      id: 1,
-      name: 'Prime Sedan',
-      desc: 'Dzire / Etios',
-      price: 12,
-      unit: '/ km',
-      image: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
-    },
-    {
-      id: 2,
-      name: 'SUV Large',
-      desc: 'Innova Crysta',
-      price: 18,
-      unit: '/ km',
-      image: 'https://images.unsplash.com/photo-1503376763036-066120622c74?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
-    },
-    {
-      id: 3,
-      name: 'Airport Drop',
-      desc: 'BBI Airport',
-      price: 499,
-      unit: ' flat',
-      image: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
-    },
-    {
-      id: 4,
-      name: 'Luxury Rental',
-      desc: 'Mercedes / BMW',
-      price: 4500,
-      unit: '/ day',
-      image: 'https://images.unsplash.com/photo-1502877338535-766e1452684a?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
-    }
-  ];
+  const [taxiDeals, setTaxiDeals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchTaxis = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/taxis');
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch taxis');
+        }
+
+        const data = await response.json();
+        setTaxiDeals(data);
+      } catch (err) {
+        console.error(err);
+        setError('Could not load taxi deals');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTaxis();
+  }, []);
 
   // Helper to check which tab is open
   const shouldShow = (category) => activeTab === 'All' || activeTab === category;
@@ -100,7 +92,7 @@ const SuperOffers = () => {
       <div className="bg-white border-bottom py-4 mb-5 shadow-sm">
         <div className="container">
           <div className="row justify-content-center text-center text-md-start">
-            
+
             {/* 24x7 Support */}
             <div className="col-md-5 d-flex align-items-center justify-content-center justify-content-md-start gap-3 mb-3 mb-md-0">
               <Ri24HoursLine size={50} className="text-secondary opacity-75" />
@@ -128,21 +120,20 @@ const SuperOffers = () => {
       </div>
 
       <div className="container">
-        
+
         {/* --- 2. SUPER OFFERS HEADER & TABS --- */}
         <div className="d-flex flex-column flex-md-row align-items-center justify-content-between mb-5">
           <h2 className="fw-bold text-dark m-0 mb-3 mb-md-0">Super <span className="fw-light text-warning">Offers</span></h2>
-          
+
           <div className="d-flex gap-2">
             {['All', 'Flight', 'Hotel', 'Taxi'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`btn btn-sm rounded-pill px-4 fw-bold transition-all ${
-                  activeTab === tab 
-                    ? 'btn-danger shadow' 
-                    : 'btn-outline-secondary'
-                }`}
+                className={`btn btn-sm rounded-pill px-4 fw-bold transition-all ${activeTab === tab
+                  ? 'btn-danger shadow'
+                  : 'btn-outline-secondary'
+                  }`}
               >
                 {tab}
               </button>
@@ -153,11 +144,11 @@ const SuperOffers = () => {
         {/* --- 3. FLIGHTS SECTION --- */}
         {shouldShow('Flight') && (
           <div className="mb-5 animate-fade-in">
-             <div className="d-flex align-items-center gap-2 mb-3">
-               <FaPlane className="text-warning" size={24} />
-               <h4 className="text-secondary m-0">Popular <span className="fw-bold text-dark">Flights</span></h4>
-             </div>
-            
+            <div className="d-flex align-items-center gap-2 mb-3">
+              <FaPlane className="text-warning" size={24} />
+              <h4 className="text-secondary m-0">Popular <span className="fw-bold text-dark">Flights</span></h4>
+            </div>
+
             <div className="row">
               {/* International */}
               <div className="col-lg-6 mb-4 mb-lg-0">
@@ -209,8 +200,8 @@ const SuperOffers = () => {
         {shouldShow('Hotel') && (
           <div className="mb-5 animate-fade-in">
             <div className="d-flex align-items-center gap-2 mb-4 justify-content-center">
-               <FaHotel className="text-warning" size={24} />
-               <h3 className="fw-bold text-dark m-0">Hotel <span className="fw-light">Deals</span></h3>
+              <FaHotel className="text-warning" size={24} />
+              <h3 className="fw-bold text-dark m-0">Hotel <span className="fw-light">Deals</span></h3>
             </div>
 
             <div className="row g-4">
@@ -218,9 +209,9 @@ const SuperOffers = () => {
                 <div key={hotel.id} className="col-md-6 col-lg-3">
                   <div className="card h-100 border-0 shadow-sm overflow-hidden hover-scale">
                     <div className="position-relative" style={{ height: '200px' }}>
-                      <img 
-                        src={hotel.image} 
-                        alt={hotel.name} 
+                      <img
+                        src={hotel.image}
+                        alt={hotel.name}
                         className="w-100 h-100 object-fit-cover"
                       />
                       <span className="position-absolute top-0 end-0 bg-danger text-white small fw-bold px-2 py-1 m-2 rounded">
@@ -229,11 +220,11 @@ const SuperOffers = () => {
                     </div>
                     <div className="card-body p-3">
                       <h6 className="fw-bold text-dark mb-1">{hotel.name}</h6>
-                      <small className="text-muted d-block mb-2"><FaMapMarkerAlt size={12}/> {hotel.location}</small>
+                      <small className="text-muted d-block mb-2"><FaMapMarkerAlt size={12} /> {hotel.location}</small>
                       <div className="d-flex align-items-end justify-content-between">
                         <div>
                           <span className="h5 fw-bold text-danger mb-0">₹ {hotel.price.toLocaleString()}</span>
-                          <small className="text-muted" style={{fontSize: '10px'}}>/night</small>
+                          <small className="text-muted" style={{ fontSize: '10px' }}>/night</small>
                         </div>
                         <button className="btn btn-sm btn-outline-warning rounded-pill">View</button>
                       </div>
@@ -248,46 +239,36 @@ const SuperOffers = () => {
 
         {/* --- 5. TAXI DEALS SECTION --- */}
         {shouldShow('Taxi') && (
-          <div className="mb-4 animate-fade-in">
-            <div className="d-flex align-items-center gap-2 mb-4 justify-content-center">
-               <FaCar className="text-warning" size={24} />
-               <h3 className="fw-bold text-dark m-0">Taxi <span className="fw-light">Deals</span></h3>
-            </div>
+          <div className="d-flex overflow-auto gap-3 pb-3" style={{ scrollBehavior: "smooth" }}>
+            {!loading && !error && taxiDeals.map((taxi) => (
+              <div
+                key={taxi.id}
+                className="card shadow-sm border-0 p-3 flex-shrink-0"
+                style={{ minWidth: "250px" }}
+              >
+                <h6 className="fw-bold text-dark mb-1">{taxi.name}</h6>
+                <small className="text-muted">{taxi.desc}</small>
 
-            <div className="row g-4">
-              {taxiDeals.map((taxi) => (
-                <div key={taxi.id} className="col-md-6 col-lg-3">
-                  <div className="card h-100 border-0 shadow-sm overflow-hidden hover-scale">
-                    <div className="position-relative" style={{ height: '180px' }}>
-                      <img 
-                        src={taxi.image} 
-                        alt={taxi.name} 
-                        className="w-100 h-100 object-fit-cover"
-                      />
-                    </div>
-                    
-                    <div className="card-body p-3 text-center">
-                      <h6 className="fw-bold text-dark mb-0">{taxi.name}</h6>
-                      <small className="text-muted">{taxi.desc}</small>
-                      
-                      <div className="my-2 bg-light rounded p-2">
-                        <span className="h4 fw-bold text-dark">₹ {taxi.price}</span>
-                        <small className="text-muted">{taxi.unit}</small>
-                      </div>
-                      
-                      <button className="btn btn-warning text-white w-100 fw-bold rounded-pill btn-sm">Book Ride</button>
-                    </div>
-                  </div>
+                <div className="my-3 bg-light rounded p-2 text-center">
+                  <span className="h5 fw-bold text-dark">
+                    ₹ {taxi.price || "Contact"}
+                  </span>
                 </div>
-              ))}
-            </div>
+
+                <button className="btn btn-warning text-white w-100 fw-bold rounded-pill btn-sm">
+                  Book Ride
+                </button>
+              </div>
+            ))}
           </div>
+
         )}
+
 
       </div>
 
       {/* Floating WhatsApp Button */}
-      <a 
+      <a
         href="https://wa.me/919999999999" // Replace with real number
         target="_blank"
         rel="noreferrer"
